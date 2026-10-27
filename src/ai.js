@@ -80,8 +80,10 @@ function apply(s,t,action) {
       o.grid[i]=t;
       p.r=r;p.c=c;
     } else {
-      o.grid[i]=null;
       o.wet[foe][i]=false;
+      o.wet[t][i]=false;
+      o.grid[i]=t;
+      p.r=r;p.c=c;
     }
   }
   root.FlowForgeFlow.tick(o,t);
