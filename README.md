@@ -8,6 +8,7 @@ Open [index.html](index.html) in a browser.
 ## Source layout
 - `src/index.html`: board, rules, controls and match history.
 - `src/flow.js`: water/fire flow, source connectivity, and spilling.
+- `src/report.js`: turn snapshots, match review export, and optional GitHub issue sharing.
 - `src/ai.js`: AI V5 strategy, independent of the game UI.
 - `build.py`: creates a self-contained root `index.html` by inlining AI code.
 
@@ -21,3 +22,6 @@ Settings → Pages → Deploy from a branch → `main` → `/ (root)`. The repos
 
 ## Flow rules
 Water and fire spread one connected tile per owning turn. Disconnected wet pipes spill immediately; repaired networks must refill gradually before scoring resumes.
+
+## Sharing playtest logs
+The browser stores recent matches locally, including a post-turn snapshot of the pipes, wet flow, score, generator positions and AI diagnostics. After a match, click **Copy match report** and paste it in ChatGPT, or **Download match JSON** and attach it. The **Share via GitHub issue** control opens a prefilled public issue draft; submit it on GitHub and then ask ChatGPT to check the latest FlowForge issue. Leaving a browser tab open does not automatically share local match data.
