@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>FlowForge — 7×7 AI Playtest</title>
+<style>
+:root{color-scheme:dark;--bg:#101920;--metal:#25353f;--line:#465765;--brass:#c29a5a;--blue:#4bd1ff;--orange:#ff9950;--text:#f2e8d9;--muted:#9db0b8}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:radial-gradient(circle at 50% 0%,#233b47 0,#12212a 43%,#101318 88%);color:var(--text)}button,select{font:inherit}button{cursor:pointer}button:disabled{cursor:default;opacity:.5}
+.shell{max-width:1230px;margin:0 auto;padding:18px 14px 30px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}.brand{font-size:27px;font-weight:900;letter-spacing:.13em;color:#f4ca8a;text-shadow:0 2px 0 #61452f,0 0 20px #8c5e2f80}.subtitle{color:var(--muted);font-size:12px;letter-spacing:.11em;margin-top:2px;text-transform:uppercase}.top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.ctl{background:#1d2e38;border:1px solid #60727c;color:#ece1d2;padding:10px 13px;border-radius:8px;min-height:40px}.ctl:hover{border-color:var(--brass);background:#253d49}.primary{background:#264d5e;border-color:#4ec5e4}.layout{display:grid;grid-template-columns:minmax(0,730px) minmax(250px,1fr);gap:21px;align-items:start}.playarea{padding:13px 12px 15px;border:1px solid #8b7048;background:linear-gradient(135deg,#22292d,#0d161c 70%);border-radius:14px;box-shadow:0 17px 43px #0009, inset 0 0 0 2px #171e22}
+.scorebar{display:grid;grid-template-columns:1fr auto 1fr;gap:9px;align-items:center;margin:1px 0 13px}.score{background:#15222b;border:1px solid #46606d;border-radius:9px;padding:9px;min-width:0}.score.o{border-color:#935c3a}.score b{display:block;font-size:12px;letter-spacing:.08em}.score.blue b{color:var(--blue)}.score.o b{color:var(--orange)}.progress{height:8px;background:#09131a;border-radius:99px;border:1px solid #41525e;overflow:hidden;margin-top:7px}.progress>div{height:100%;width:0%;background:linear-gradient(90deg,#148cae,var(--blue));transition:width .3s}.o .progress>div{background:linear-gradient(90deg,#a34920,var(--orange))}.num{font-weight:800;float:right;font-variant-numeric:tabular-nums}.turn-indicator{font-size:12px;color:#ead2a7;text-align:center;min-width:106px}.turn-indicator strong{display:block;font-size:13px;margin-bottom:4px}.round{color:#92a7af;font-size:11px}
+.board-shell{max-width:650px;margin:0 auto;--g:3px}.rail{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:var(--g);padding:0 7px;height:62px}.rail.bottom{margin-top:3px}.rail.top{margin-bottom:3px}.port{background:#14232d;border:1px solid #5c6870;border-radius:8px;color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;min-width:0;position:relative;padding:2px 0}.port.o{border-color:#986540;background:linear-gradient(#3b2b23,#201a1c)}.port.blue{border-color:#367b96;background:linear-gradient(#193c4b,#152b36)}.port .orb{font-size:20px;line-height:1.1}.port .tiny{font-size:9px;color:#ded2c0;font-weight:700;white-space:nowrap}.port.selected{outline:3px solid #e5ca83;outline-offset:0;box-shadow:0 0 17px #e0c28470}.port.empty-token::after{content:' ';position:absolute;width:5px;height:5px;border-radius:50%;top:5px;right:5px;background:#606c76}.jar{border:2px solid #b69258;background:linear-gradient(180deg,#192631,#2b3033);position:relative;overflow:hidden}.jar.o{box-shadow:inset 0 0 15px #ab4f2355}.jar.blue{box-shadow:inset 0 0 15px #368cb04f}.jar .jar-liquid{position:absolute;bottom:0;left:0;width:100%;height:0%;transition:height .35s;background:#2cc5e5aa}.jar.o .jar-liquid{background:#ec8540a3}.jar .jar-content{position:relative;z-index:2;text-align:center;font-size:12px;font-weight:900}.jar .jar-content span{display:block;font-size:18px}.jar .jar-content small{display:block;font-size:9px;white-space:nowrap}
+.board-frame{border:5px ridge #846541;background:#3b3b36;border-radius:9px;box-shadow:inset 0 0 0 2px #d5ab6f,0 10px 15px #0009;padding:5px}.board{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:var(--g);aspect-ratio:1}.tile{position:relative;aspect-ratio:1;background:linear-gradient(155deg,#2d3f4c,#1c2b35);border:1px solid #47616c;border-radius:5px;min-width:0;min-height:0;padding:0;box-shadow:inset 0 1px 0 #70808b35,0 1px 0 #0b1317}.tile:focus-visible,.port:focus-visible{outline:2px solid #fff;outline-offset:-2px}.tile.pipe-blue{background:linear-gradient(155deg,#1c4b5b,#192c3a)}.tile.pipe-o{background:linear-gradient(155deg,#533523,#2a292a)}.tile.hint-build{border:2px solid #6bd4a6;box-shadow:inset 0 0 16px #3ed99e32}.tile.hint-attack{border:2px solid #fa7565;box-shadow:inset 0 0 16px #df535045}.tile.hint-move{border:2px solid #e8bf68}.tile.selected{outline:3px solid #f6d089;outline-offset:-3px}.tile:active{filter:brightness(1.25)}.tile svg{display:block;width:100%;height:100%;pointer-events:none}.pipe-core-blue{stroke:var(--blue)}.pipe-core-o{stroke:var(--orange)}.pipe-core-powered{filter:drop-shadow(0 0 7px currentColor)}.pipe-unpowered{opacity:.3}.unit{position:absolute;z-index:2;width:39%;height:39%;top:30.5%;left:30.5%;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:clamp(11px,2vw,18px);font-weight:900;border:2px solid #dab16f;background:#182a32;box-shadow:0 0 0 2px #14222a,0 0 14px #000b;pointer-events:none}.unit.o{color:#ffae72;border-color:#ffa75b;background:#46302b}.unit.blue{color:#7ce2ff;border-color:#69bde4}.mark{position:absolute;top:3px;left:3px;font-size:9px;color:#75929c;pointer-events:none;opacity:.45}.board-note{color:#a6b5b9;font-size:11px;line-height:1.4;text-align:center;margin:11px 0 0}
+.sidebar{display:flex;flex-direction:column;gap:12px}.panel{background:#17252e;border:1px solid #465966;padding:15px;border-radius:11px;box-shadow:0 7px 20px #0004}.panel h2{margin:0 0 8px;color:#e8cf9f;font-size:15px}.panel p,.panel li{font-size:13px;line-height:1.53;color:#b9c6cc}.panel p{margin:5px 0}.panel ol{padding-left:19px;margin:6px 0}.panel li{margin:7px 0}.pill{display:inline-block;padding:5px 9px;border-radius:30px;background:#263a45;border:1px solid #5f7682;color:#c6e8f4;font-size:12px;font-weight:700}.actionrow{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 2px}.actionrow .ctl{flex:1}.prompt{min-height:48px;padding:10px 12px;background:#0c1d27;border-radius:8px;border-left:3px solid #57c9e7;color:#e5edf1;font-size:13px;line-height:1.5}.log{max-height:220px;overflow:auto;display:flex;flex-direction:column;gap:6px;margin-top:9px}.entry{font-size:12px;border-left:2px solid #6d8694;background:#101e26;padding:6px 8px;border-radius:4px;color:#b9cbd2}.entry.blue{border-color:var(--blue)}.entry.orange{border-color:var(--orange)}.statusrows{display:grid;grid-template-columns:1fr 1fr;gap:8px}.stat{padding:8px;border:1px solid #3d5865;border-radius:7px;background:#0e1c26;text-align:center}.stat span{font-size:11px;color:#9eacb1;display:block}.stat strong{font-size:17px}.blueText{color:var(--blue)}.orangeText{color:var(--orange)}.win-banner{padding:12px;border:1px solid #d0ad71;background:#3b3227;border-radius:8px;text-align:center;font-size:14px;display:none}.win-banner.show{display:block}.foot{margin-top:12px;color:#8da1aa;font-size:12px;text-align:center}
+@media(max-width:870px){.layout{grid-template-columns:1fr;gap:12px}.playarea{padding:10px 7px}.sidebar{display:grid;grid-template-columns:1fr 1fr}.sidebar>.panel:first-child{grid-column:1/-1}.brand{font-size:23px}.rail{height:55px}}@media(max-width:570px){.shell{padding:10px 6px 25px}.brand{font-size:19px}.topbar{gap:8px}.top-actions{width:100%}.top-actions .ctl{flex:1;padding:8px}.scorebar{gap:5px}.score{padding:7px 6px}.turn-indicator{min-width:70px;font-size:10px}.turn-indicator strong{font-size:11px}.score b{font-size:10px}.rail{height:48px;padding:0 2px;--g:2px}.board-shell{--g:2px}.board-frame{padding:3px;border-width:3px}.port{border-radius:5px}.port .orb{font-size:17px}.port .tiny{font-size:8px}.jar .jar-content span{font-size:15px}.jar .jar-content small{font-size:8px}.sidebar{grid-template-columns:1fr}.sidebar>.panel:first-child{grid-column:auto}.panel{padding:12px}.board-note{font-size:10px}.unit{border-width:1px}}
+.tile.hint-merge{border:3px solid #c894ff;box-shadow:inset 0 0 12px #8c59d864,0 0 9px #8c59d864}.tile.merge-dim{opacity:.6}.ctl.armed{background:#593a74;border-color:#c894ff;box-shadow:0 0 11px #9d70de55}.port .orb{font-weight:900}.unit{font-variant-numeric:tabular-nums}.port.lost-token{border-style:dashed;opacity:.65}.port.lost-token .orb{color:#f5a89a;font-size:23px}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="topbar"><div><div class="brand">FLOWFORGE</div><div class="subtitle">7×7 · Water vs Fire · AI V4 Playtest</div></div><div class="top-actions"><select class="ctl" id="mode" aria-label="Opponent mode"><option value="ai">Play vs AI</option><option value="pvp">Local 2 Players</option></select><button class="ctl primary" id="restart">↻ New match</button></div></header>
+<div class="layout">
+<section class="playarea">
+<div class="scorebar"><div class="score blue"><b>💧 BLUE <span id="bScore" class="num">0/6</span></b><div class="progress"><div id="bProgress"></div></div></div><div class="turn-indicator"><strong id="turnDisplay">BLUE TURN</strong><span class="round" id="roundDisplay">Turn 1</span></div><div class="score o"><b>🔥 ORANGE <span id="oScore" class="num">0/6</span></b><div class="progress"><div id="oProgress"></div></div></div></div>
+<div class="board-shell"><div class="rail top" id="topRail"></div><div class="board-frame"><div id="board" class="board" role="group" aria-label="Seven by seven gameplay grid"></div></div><div class="rail bottom" id="bottomRail"></div></div>
+<p class="board-note">Orange generators ×3 · enemy jar · generators ×3 (top) &nbsp;·&nbsp; Blue generators ×3 · own jar · generators ×3 (bottom)</p>
+</section>
+<aside class="sidebar">
+<div class="panel"><h2>Current action</h2><div class="prompt" id="prompt">Select a Blue generator on the bottom edge to begin.</div><div class="actionrow"><button class="ctl" id="pass">End turn / Wait</button><button class="ctl" id="merge" disabled>Merge Gen1 + Gen1</button><button class="ctl" id="hint">Highlight a route</button></div><div id="winBanner" class="win-banner"></div></div>
+<div class="panel"><h2>Objective</h2><p><b class="blueText">Blue:</b> carry live water from any bottom source to the <b>orange jar at the top center</b>.</p><p><b class="orangeText">Orange:</b> carry fire from any top source to the <b>blue jar at the bottom center</b>.</p><p>First to deliver <b>6 units</b> into the opponent's jar wins. A cut pipeline cannot score. Two or more connected source ports deliver up to <b>2 units per turn</b>.</p><div class="statusrows"><div class="stat"><span>Blue sources reaching jar</span><strong id="bConnected" class="blueText">0</strong></div><div class="stat"><span>Orange sources reaching jar</span><strong id="oConnected" class="orangeText">0</strong></div></div></div>
+<div class="panel"><h2>Controls</h2><ol><li>Tap one of your <b>six generator ports</b> or a generator on the board. If it has <b>only one legal build or movement option</b>, that move happens immediately—no second tap.</li><li>Tap a <b>green outlined adjacent tile</b> to build one pipe and move your generator.</li><li>Tap a <b>red outlined adjacent enemy pipe</b> to destroy it. Your generator stays put.</li><li>Tap a reachable <b>friendly pipe</b> to travel along your network in one turn.</li><li>Your <b>last-used generator stays selected</b> on your next turn, with all legal moves highlighted.</li><li>Every generator starts as <b>1 (Gen1)</b>. Select a Gen1, tap <b>Merge Gen1 + Gen1</b>, then tap a purple-outlined Gen1 reachable through your pipes to form <b>2 (Gen2)</b>.</li><li>Attacking <b>Gen2</b> downgrades it to <b>Gen1</b> and keeps its pipe. Attacking Gen1 destroys the generator permanently along with its pipe. The original source remains available for pipelines, but the lost generator does not respawn.</li><li>When your pipeline reaches the <b>center of the opponent's edge</b>, each of your turns delivers water/fire automatically.</li></ol><p>When not in Merge mode, tapping another friendly generator selects it. Merge consumes one turn. For this prototype, neighboring friendly pipes connect automatically. It has no obstacles, special tiles, pipe rotations, or pressure chambers.</p></div>
+<div class="panel"><h2>Match log <span class="pill" id="aiVersion">AI V4</span></h2>
+<p>Full history is kept for this match. Recent sessions are saved locally in this browser when storage is allowed.</p>
+<div class="actionrow"><button class="ctl" id="exportLog">Export logs</button><button class="ctl" id="copyLog">Copy logs</button><button class="ctl" id="pastLog">Past matches</button></div>
+<div id="log" class="log" aria-live="polite"></div><div id="pastMatches" class="log" style="display:none"></div></div>
+</aside>
+</div><p class="foot">Experimental game rules — designed to test whether the opposite-edge jar objective makes interesting choices, before building it in Unity.</p>
+</div>
+<script src="ai.js"></script>
+<script>
+(() => {
+  'use strict';
+  const N = 7, GOAL = 6, PORTS = [0, 1, 2, 4, 5, 6];
+  const DIRS = [[1,0], [-1,0], [0,1], [0,-1]];
+  const COLORS = { blue: '#45cfff', orange: '#ff9950' };
+  const $ = id => document.getElementById(id);
+  let S, aiTimeout = null;
+  const HISTORY_KEY = 'flowforge-playtest-matches-v4';
+  const safeStore = {
+    read() { try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; } catch (_) { return []; } },
+    write(value) { try { localStorage.setItem(HISTORY_KEY,JSON.stringify(value)); } catch (_) {} }
+  };
+  let archive = safeStore.read();
+  function persist() {
+    if (!S) return;
+    const entry = {matchId:S.matchId,started:S.started,mode:S.mode,turn:S.moves,
+      winner:S.winner,score:S.score,events:S.history};
+    const matchIndex=archive.findIndex(x=>x.matchId===S.matchId);
+    if(matchIndex>=0)archive[matchIndex]=entry;else archive.unshift(entry);
+    archive=archive.slice(0,30);
+    safeStore.write(archive);
+  }
+
+  const idx = (r,c) => r * N + c;
+  const inside = (r,c) => r >= 0 && r < N && c >= 0 && c < N;
+  const other = team => team === 'blue' ? 'orange' : 'blue';
+  const goalLoc = team => ({r: team === 'blue' ? 0 : 6, c: 3});
+  const ownEdge = team => team === 'blue' ? 6 : 0;
+  const pieceName = team => team === 'blue' ? 'Blue' : 'Orange';
+  const atDock = (team,p) => p.active && p.r === (team === 'blue' ? 7 : -1);
+  const available = (team) => S.pieces[team].filter(p => p.active);
+  function newMatch() {
+    if (aiTimeout !== null) { clearTimeout(aiTimeout); aiTimeout = null; }
+    S = {
+      grid: Array(N*N).fill(null),
+      pieces: {
+        blue: PORTS.map((c,i) => ({id:i, r:7, c, home:c, level:1, active:true})),
+        orange: PORTS.map((c,i) => ({id:i, r:-1, c, home:c, level:1, active:true}))
+      },
+      turn: 'blue', moves: 1, score: {blue:0, orange:0},
+      selected: null, lastSelected: {blue:null, orange:null},
+      mergeMode: false, winner: null, mode: $('mode').value, logs: [],
+      started: new Date().toISOString(), matchId: Date.now()+'-'+Math.floor(Math.random()*10000),
+      history: []
+    };
+    note('Blue begins. All generators start at level 1.', 'blue');
+    render();
+    say('Tap a Blue Gen1 on the bottom edge to deploy it in one tap. The last-used generator stays selected on your next turn.');
+  }
+  function pieceAt(team,r,c) { return available(team).find(p => p.r === r && p.c === c); }
+  function occupant(r,c) { return pieceAt('blue',r,c) || pieceAt('orange',r,c); }
+  function selectedPiece() {
+    if (!S.selected) return null;
+    const p = S.pieces[S.selected.team][S.selected.id];
+    return p && p.active ? p : null;
+  }
+  function connectedTiles(team) {
+    const reached = new Set(), queue = [];
+    for (const c of PORTS) {
+      const r = ownEdge(team), k = idx(r,c);
+      if (S.grid[k] === team && !reached.has(k)) {
+        reached.add(k); queue.push([r,c]);
+      }
+    }
+    for (let i = 0; i < queue.length; i++) {
+      const [r,c] = queue[i];
+      for (const [dr,dc] of DIRS) {
+        const rr = r+dr, cc = c+dc;
+        if (!inside(rr,cc)) continue;
+        const k = idx(rr,cc);
+        if (!reached.has(k) && S.grid[k] === team) {
+          reached.add(k); queue.push([rr,cc]);
+        }
+      }
+    }
+    return reached;
+  }
+  function sourcesToJar(team) {
+    const goal = goalLoc(team), start = idx(goal.r, goal.c);
+    if (S.grid[start] !== team) return 0;
+    const seen = new Set([start]), queue = [[goal.r,goal.c]], touch = new Set();
+    for (let i = 0; i < queue.length; i++) {
+      const [r,c] = queue[i];
+      if (r === ownEdge(team) && PORTS.includes(c)) touch.add(c);
+      for (const [dr,dc] of DIRS) {
+        const rr = r+dr, cc = c+dc;
+        if (!inside(rr,cc)) continue;
+        const k = idx(rr,cc);
+        if (!seen.has(k) && S.grid[k] === team) { seen.add(k); queue.push([rr,cc]); }
+      }
+    }
+    return touch.size;
+  }
+  function areConnected(a,b,team) {
+    if (!inside(a.r,a.c) || !inside(b.r,b.c)) return false;
+    const start = idx(a.r,a.c), end = idx(b.r,b.c);
+    if (S.grid[start] !== team || S.grid[end] !== team) return false;
+    if (start === end) return true;
+    const seen = new Set([start]), queue = [[a.r,a.c]];
+    for (let i = 0; i < queue.length; i++) {
+      const [r,c] = queue[i];
+      for (const [dr,dc] of DIRS) {
+        const rr = r+dr, cc = c+dc;
+        if (!inside(rr,cc)) continue;
+        const k = idx(rr,cc);
+        if (seen.has(k) || S.grid[k] !== team) continue;
+        if (k === end) return true;
+        seen.add(k); queue.push([rr,cc]);
+      }
+    }
+    return false;
+  }
+  function adjacent(p,r,c) { return Math.abs(p.r-r) + Math.abs(p.c-c) === 1; }
+  function canReachViaPipe(team,p,r,c) {
+    // Docked generators enter through their own source tile, and may then travel
+    // through that existing pipe network. There is no teleportation across ports.
+    const start = atDock(team,p) ? {r:ownEdge(team), c:p.home} : p;
+    return areConnected(start,{r,c},team);
+  }
+  function canMerge(team,p,r,c) {
+    if (!p || !p.active || p.level !== 1 || !inside(r,c)) return false;
+    const target = pieceAt(team,r,c);
+    return !!target && target.id !== p.id && target.level === 1 && canReachViaPipe(team,p,r,c);
+  }
+  function legal(team,p,r,c) {
+    if (!p || !p.active || !inside(r,c)) return null;
+    const current = S.grid[idx(r,c)];
+    const entrance = atDock(team,p) && c === p.home && r === ownEdge(team);
+    if (current === null && (adjacent(p,r,c) || entrance)) return 'build';
+    if (current === other(team) && adjacent(p,r,c)) return 'attack';
+    if (current === team && !pieceAt(team,r,c) && canReachViaPipe(team,p,r,c)) return 'move';
+    return null;
+  }
+  function say(txt) { $('prompt').textContent = txt; }
+  function note(text,team) {
+    const event={turn:S.moves,team,text,time:new Date().toISOString()};
+    S.history.push(event);
+    S.logs.unshift(event);
+    S.logs=S.logs.slice(0,30);
+    persist();
+  }
+  function pos(r,c) { return String.fromCharCode(65+c)+(r+1); }
+  function selectionMessage(team,p) {
+    return `${pieceName(team)} Gen${p.level} selected. Green: build · gold: move · red: attack${p.level===1?' · purple: mergeable Gen1':''}.`;
+  }
+  function singleSafeMove(team,p) {
+    // Only a deliberate tap on a generator can auto-commit a move.
+    // Do not auto-attack, auto-merge, or auto-move on turn restoration.
+    const actions = [];
+    for (let r=0;r<N;r++) for (let c=0;c<N;c++) {
+      const kind = legal(team,p,r,c);
+      if (kind) actions.push({r,c,kind});
+      if (actions.length > 1) return null;
+    }
+    // A possible merge is another decision: do not silently skip it.
+    if (p.level === 1 && available(team).some(q => canMerge(team,p,q.r,q.c))) return null;
+    return actions.length === 1 && (actions[0].kind === 'build' || actions[0].kind === 'move') ? actions[0] : null;
+  }
+  function choose(team,id,{autoSingle=true}={}) {
+    if (S.winner || S.turn !== team || (S.mode==='ai' && team==='orange')) return;
+    const p = S.pieces[team][id];
+    if (!p || !p.active) return;
+    S.selected = {team,id}; S.lastSelected[team] = id; S.mergeMode = false;
+    if (autoSingle) {
+      const only = singleSafeMove(team,p);
+      if (only) {
+        doAction(team,p.id,only.r,only.c,only.kind);
+        return;
+      }
+    }
+    render(); say(selectionMessage(team,p));
+  }
+  function pressPort(team,c) {
+    if (S.winner || S.turn !== team || (S.mode === 'ai' && team === 'orange')) return;
+    const p = S.pieces[team].find(p => p.home === c && atDock(team,p));
+    if (p) choose(team,p.id);
+    else {
+      const initial = S.pieces[team].find(p=>p.home===c);
+      say(initial && !initial.active ? 'That generator was destroyed and will not respawn. Its source remains active.' : 'The generator has already moved or merged. Select an active generator on the board.');
+    }
+  }
+  function pressCell(r,c) {
+    if (S.winner || (S.mode === 'ai' && S.turn === 'orange')) return;
+    const team = S.turn, own = pieceAt(team,r,c), p = selectedPiece();
+    if (S.mergeMode) {
+      if (p && own && canMerge(team,p,r,c)) { doAction(team,p.id,r,c,'merge'); return; }
+      if (own && p && own.id === p.id) { S.mergeMode = false; render(); say(selectionMessage(team,p)); return; }
+      say('Merge mode: tap a purple-highlighted friendly Gen1, or tap Merge again to cancel.');
+      return;
+    }
+    if (own) { choose(team,own.id); return; }
+    if (!p) { say('Select one of your generators to view all its possible moves.'); return; }
+    const action = legal(team,p,r,c);
+    if (!action) { say('Not a legal action. Choose an outlined tile or select another generator.'); return; }
+    doAction(team,p.id,r,c,action);
+  }
+  function doAction(team,id,r,c,action) {
+    if (S.winner || S.turn !== team) return;
+    const p = S.pieces[team][id];
+    if (!p || !p.active) return;
+    if (action === 'build') {
+      if (legal(team,p,r,c) !== 'build') return;
+      S.grid[idx(r,c)] = team; p.r = r; p.c = c;
+      note(`${pieceName(team)} Gen${p.level} built to ${pos(r,c)}.`,team);
+    } else if (action === 'move') {
+      if (legal(team,p,r,c) !== 'move') return;
+      p.r = r; p.c = c;
+      note(`${pieceName(team)} Gen${p.level} moved to ${pos(r,c)}.`,team);
+    } else if (action === 'merge') {
+      if (!canMerge(team,p,r,c)) return;
+      const target = pieceAt(team,r,c);
+      target.active = false; target.r = -99; target.c = -99;
+      p.r = r; p.c = c; p.level = 2;
+      // Keep the merged generator selected. Ports remain independent live sources.
+      if (S.lastSelected[team] === target.id) S.lastSelected[team] = p.id;
+      S.lastSelected[team] = p.id;
+      note(`${pieceName(team)} Gen1 + Gen1 → Gen2 at ${pos(r,c)}.`,team);
+    } else if (action === 'attack') {
+      if (legal(team,p,r,c) !== 'attack') return;
+      const foe = other(team), struck = pieceAt(foe,r,c);
+      if (struck && struck.level === 2) {
+        struck.level = 1;
+        // The target, the pipe beneath it, and its current position all survive.
+        note(`${pieceName(team)} hit ${pieceName(foe)} Gen2 at ${pos(r,c)} → downgraded to Gen1.`,team);
+      } else {
+        S.grid[idx(r,c)] = null;
+        if (struck) {
+          struck.active = false; struck.r = -99; struck.c = -99;
+          if (S.lastSelected[foe] === struck.id) S.lastSelected[foe] = null;
+          if (S.selected?.team === foe && S.selected.id === struck.id) S.selected = null;
+        }
+        note(`${pieceName(team)} destroyed ${pieceName(foe)} ${struck?'Gen1 permanently (no respawn) and its pipe':'pipe'} at ${pos(r,c)}.`,team);
+      }
+    } else return;
+    // AI and PvP both retain a separate last-used generator per team.
+    S.lastSelected[team] = p.id;
+    resolveTurn(team);
+  }
+  function restoreSelection(team) {
+    const id = S.lastSelected[team];
+    const p = id === null ? null : S.pieces[team][id];
+    S.selected = p && p.active ? {team,id} : null;
+    return p && p.active ? p : null;
+  }
+  function resolveTurn(team) {
+    const count = sourcesToJar(team), n = Math.min(2,count);
+    if (n) {
+      S.score[team] = Math.min(GOAL,S.score[team]+n);
+      note(`${pieceName(team)} delivered ${n} unit${n>1?'s':''}! Enemy jar ${S.score[team]}/${GOAL}.`,team);
+    }
+    if (S.score[team] >= GOAL) {
+      S.winner = team; S.selected = null; S.mergeMode = false;
+      note(`🏆 ${pieceName(team)} wins — the enemy jar is full!`,team);
+      render(); return;
+    }
+    S.turn = other(team); S.moves++; S.mergeMode = false;
+    const restored = restoreSelection(S.turn);
+    render();
+    if (S.turn === 'orange' && S.mode === 'ai') {
+      say('Orange AI is choosing a move…');
+      aiTimeout = setTimeout(aiMove,380);
+    } else if (restored) {
+      say(`${pieceName(S.turn)} Gen${restored.level} reselected automatically. Possible moves are highlighted.`);
+    } else {
+      say(`${pieceName(S.turn)} turn. Select a generator to see its possible moves.`);
+    }
+  }
+  function pass() {
+    if (S.winner || (S.turn === 'orange' && S.mode === 'ai')) return;
+    note(`${pieceName(S.turn)} waited.`,S.turn);
+    resolveTurn(S.turn);
+  }
+  // AI lives in ai.js. All rules/board interaction remain in this HTML's engine.
+  // Future improvements should modify ai.js, not replace the existing prototype.
+  function aiMove() {
+    aiTimeout = null;
+    if (!S || S.winner || S.turn !== 'orange' || S.mode !== 'ai') return;
+    const result=window.FlowForgeAI.choose(S);
+    if (result.move) {
+      const a=result.move, d=result.diagnostics;
+      note(`AI: ${a.action} ${pos(a.r,a.c)} · ${result.explanation} [${d.candidates} moves, ${d.shortlist} lookahead, risk ${d.riskReply}]`, 'orange');
+      doAction('orange',a.id,a.r,a.c,a.action);
+    } else {note('Orange AI waits.', 'orange');resolveTurn('orange');}
+  }
+  function evaluateMove(team,p,r,c,action) {
+    // Hint uses same current AI evaluation for the Orange player, but keeps Blue's
+    // hint lightweight. The AI itself evaluates all actions and opponent replies.
+    const g=goalLoc(team),dist=Math.abs(g.r-r)+Math.abs(g.c-c);
+    return (action==='attack'?20:action==='merge'?0:0)-12*dist + (action==='build'?15:0);
+  }
+  function pipeSVG(r,c,team,powered) {
+    const dirs=[];
+    for (const [dr,dc] of DIRS) {
+      if (inside(r+dr,c+dc) && S.grid[idx(r+dr,c+dc)]===team) dirs.push([dr,dc]);
+    }
+    if (team==='blue' && r===6 && PORTS.includes(c)) dirs.push([1,0]);
+    if (team==='orange' && r===0 && PORTS.includes(c)) dirs.push([-1,0]);
+    if (team==='blue' && r===0 && c===3) dirs.push([-1,0]);
+    if (team==='orange' && r===6 && c===3) dirs.push([1,0]);
+    if (!dirs.length) dirs.push([0,0]);
+    let segments='';
+    for (const [dr,dc] of dirs) {
+      const x=50+dc*50, y=50+dr*50, path=`M50 50 L${x} ${y}`;
+      segments+=`<path d="${path}" fill="none" stroke="#a37d4f" stroke-width="31"/>`+
+        `<path d="${path}" fill="none" stroke="#263d47" stroke-width="24"/>`+
+        `<path class="${powered?'':'pipe-unpowered'}" d="${path}" fill="none" stroke="${COLORS[team]}" stroke-opacity="${powered?'.93':'.45'}" stroke-width="15" stroke-linecap="round"/>`;
+    }
+    return `<svg viewBox="0 0 100 100" aria-hidden="true">${segments}<circle cx="50" cy="50" r="10" fill="${powered?COLORS[team]:'#405362'}" stroke="#bc9662" stroke-width="5"/></svg>`;
+  }
+  function renderRail(team,el) {
+    let html='';
+    for (let c=0;c<N;c++) {
+      if (c===3) {
+        const s=S.score[other(team)];
+        html+=`<div class="port jar ${team==='orange'?'o':'blue'}" title="${pieceName(team)} jar — target for ${pieceName(other(team))}"><div class="jar-liquid" style="height:${s/GOAL*100}%"></div><div class="jar-content"><span>🫙</span><small>${s}/${GOAL} JAR</small></div></div>`;
+        continue;
+      }
+      const p=S.pieces[team].find(x=>x.home===c);
+      const at=atDock(team,p);
+      const lost=!p.active;
+      const selected=at && S.selected?.team===team && S.selected.id===p.id;
+      const detail=at?'Gen'+p.level:lost?'generator permanently destroyed':'generator moved or merged';
+      html+=`<button class="port ${team==='orange'?'o':'blue'} ${selected?'selected':''} ${at?'':'empty-token'} ${lost?'lost-token':''}" data-team="${team}" data-port="${c}" aria-label="${pieceName(team)} ${detail} at column ${c+1}" title="${pieceName(team)} source ${c+1} · ${detail}${lost?' · source stays active':''}"><span class="orb">${at?String(p.level):(lost?'×':(team==='blue'?'💧':'🔥'))}</span><span class="tiny">${at?'GEN '+p.level:lost?'LOST':'SOURCE'}</span></button>`;
+    }
+    el.innerHTML=html;
+    el.querySelectorAll('button[data-port]').forEach(b=>b.addEventListener('click',()=>pressPort(b.dataset.team,+b.dataset.port)));
+  }
+  function render() {
+    if (!S) return;
+    const powers={blue:connectedTiles('blue'),orange:connectedTiles('orange')};
+    const p=selectedPiece(), team=S.turn;
+    let html='';
+    for (let r=0;r<N;r++) for (let c=0;c<N;c++) {
+      const t=S.grid[idx(r,c)], u=occupant(r,c);
+      const mayAct=p && S.selected.team===team && !(S.mode==='ai' && team==='orange');
+      const action=mayAct ? legal(team,p,r,c) : null;
+      const mergeable=mayAct && canMerge(team,p,r,c);
+      let cls='tile '+(t==='blue'?'pipe-blue':t==='orange'?'pipe-o':'');
+      if (action && !S.mergeMode) cls+=' hint-'+action;
+      if (mergeable) cls+=' hint-merge';
+      if (S.mergeMode && !mergeable && !u) cls+=' merge-dim';
+      if (p && S.selected.team===team && p.r===r && p.c===c) cls+=' selected';
+      const powered=t && powers[t].has(idx(r,c));
+      const aria=`${pos(r,c)}${t?' '+t+' pipe':''}${u?' Gen'+u.level:''}${mergeable?' merge available':''}${action?' '+action:''}`;
+      html+=`<button type="button" class="${cls}" data-r="${r}" data-c="${c}" aria-label="${aria}" title="${aria}">`+
+        `${t?pipeSVG(r,c,t,powered):'<span class="mark">·</span>'}`+
+        `${u?`<span class="unit ${t}">${u.level}</span>`:''}</button>`;
+    }
+    $('board').innerHTML=html;
+    $('board').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>pressCell(+b.dataset.r,+b.dataset.c)));
+    renderRail('orange',$('topRail')); renderRail('blue',$('bottomRail'));
+    $('bScore').textContent=`${S.score.blue}/${GOAL}`;
+    $('oScore').textContent=`${S.score.orange}/${GOAL}`;
+    $('bProgress').style.width=S.score.blue/GOAL*100+'%';
+    $('oProgress').style.width=S.score.orange/GOAL*100+'%';
+    $('turnDisplay').textContent=S.winner?'MATCH OVER':`${team.toUpperCase()} TURN`;
+    $('turnDisplay').style.color=COLORS[team];
+    $('roundDisplay').textContent=`Turn ${S.moves}`;
+    $('bConnected').textContent=sourcesToJar('blue');
+    $('oConnected').textContent=sourcesToJar('orange');
+    $('pass').disabled=!!S.winner || (S.mode==='ai' && team==='orange');
+    const mergeButton=$('merge');
+    mergeButton.disabled=!!S.winner || (S.mode==='ai' && team==='orange') || !p || p.level!==1;
+    mergeButton.classList.toggle('armed',S.mergeMode);
+    mergeButton.textContent=S.mergeMode?'Cancel merge':'Merge Gen1 + Gen1';
+    $('log').innerHTML=S.logs.map(e=>`<div class="entry ${e.team==='orange'?'orange':'blue'}"><b>T${e.turn}</b> ${escapeHTML(e.text)}</div>`).join('');
+    $('winBanner').className='win-banner'+(S.winner?' show':'');
+    $('winBanner').textContent=S.winner?`🏆 ${pieceName(S.winner)} wins! The ${pieceName(other(S.winner)).toLowerCase()} jar is full.`:'';
+    if (S.winner) say(`${pieceName(S.winner)} wins! Start a new match to try a different strategy.`);
+  }
+  function escapeHTML(s) { return String(s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+  function mergeToggle() {
+    if (S.winner || (S.mode==='ai' && S.turn==='orange')) return;
+    const p=selectedPiece();
+    if (!p || p.level!==1) { say('Choose a Gen1 before merging.'); return; }
+    S.mergeMode=!S.mergeMode;
+    render();
+    if (S.mergeMode) {
+      const options=available(S.turn).filter(q=>canMerge(S.turn,p,q.r,q.c));
+      say(options.length ? 'Merge active: tap a purple-highlighted friendly Gen1 to combine into Gen2 (costs one turn).' : 'No connected Gen1 to merge yet. Build a friendly pipe route to another Gen1, or cancel merge.');
+    } else say(selectionMessage(S.turn,p));
+  }
+  function hint() {
+    if (S.winner || (S.turn==='orange' && S.mode==='ai')) return;
+    const t=S.turn;
+    let candidate=null;
+    for (const p of available(t)) {
+      const opts=[];
+      for (const [dr,dc] of DIRS) {
+        const r=p.r+dr,c=p.c+dc,act=legal(t,p,r,c);
+        if (act && act!=='move') opts.push({id:p.id,r,c,act,rank:evaluateMove(t,p,r,c,act)});
+      }
+      opts.sort((a,b)=>b.rank-a.rank);
+      if (opts[0] && (!candidate || opts[0].rank>candidate.rank)) candidate=opts[0];
+    }
+    if (candidate) {
+      choose(t,candidate.id,{autoSingle:false});
+      say(`Suggested move: ${candidate.act} at ${pos(candidate.r,c)}. Green, gold, red and purple outlines show all options for the selected generator.`);
+    } else say('No adjacent building option. Move along your own pipe network, or try merging two Gen1 generators.');
+  }
+  $('restart').addEventListener('click',newMatch);
+  $('mode').addEventListener('change',newMatch);
+  $('pass').addEventListener('click',pass);
+  $('hint').addEventListener('click',hint);
+  $('merge').addEventListener('click',mergeToggle);
+  $('aiVersion').textContent=window.FlowForgeAI.version;
+  function wholeLog() {return S.history.map(e=>`Turn ${e.turn} ${e.team.toUpperCase()}: ${e.text}`).join('\n');}
+  $('copyLog').addEventListener('click', async ()=>{
+    try { await navigator.clipboard.writeText(wholeLog());say('Full current match log copied.'); }
+    catch (_) {say('Clipboard not available here. Use Export logs instead.');}
+  });
+  $('exportLog').addEventListener('click',()=>{
+    persist();
+    const data=JSON.stringify({version:'flowforge-7x7-v4',ai:window.FlowForgeAI.version,exported:new Date().toISOString(),matches:archive},null,2);
+    const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
+    const a=document.createElement('a');a.href=url;a.download='flowforge-match-logs.json';a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),5000);
+    say('Exported all saved match logs as JSON.');
+  });
+  $('pastLog').addEventListener('click',()=>{
+    const el=$('pastMatches');el.style.display=el.style.display==='none'?'block':'none';
+    el.innerHTML=archive.map(m=>`<div class="entry">${escapeHTML(m.started||'Match')} · ${escapeHTML(m.mode||'')} · ${escapeHTML(m.winner||'In progress')} · B${m.score?.blue||0}/O${m.score?.orange||0} · ${m.events?.length||0} events</div>`).join('') || '<p>No saved matches yet.</p>';
+  });
+  newMatch();
+})();
+</script>
+</body>
+</html>
