@@ -33,14 +33,7 @@ function connected(s,t,a,b) {
   return false;
 }
 function sourceCount(s,t) {
-  const goal=target(t),i=index(goal.r,goal.c);if(s.grid[i]!==t)return 0;
-  const seen=new Set([i]),q=[i],ports=new Set();
-  for(let k=0;k<q.length;k++){
-    const r=(q[k]/N)|0,c=q[k]%N;
-    if(r===edge(t)&&PORTS.includes(c))ports.add(c);
-    for(const [dr,dc] of DIRS){const rr=r+dr,cc=c+dc,ii=index(rr,cc);if(inside(rr,cc)&&!seen.has(ii)&&s.grid[ii]===t){seen.add(ii);q.push(ii);}}
-  }
-  return ports.size;
+ return root.FlowForgeFlow.sourceCount(s,t);
 }
 function legal(s,t,p,r,c) {
   if(!p.active||!inside(r,c))return null;
@@ -73,8 +66,8 @@ function actionList(s,t) {
   return result;
 }
 function apply(s,t,action) {
-  const o={...s,grid:s.grid.slice(),pieces:{blue:s.pieces.blue.map(p=>({...p})),orange:s.pieces.orange.map(p=>({...p}))},score:{...s.score}};
-  const p=o.pieces[t][action.id],r=action.r,c=action.c,i=index(r,c);
+  const o={...s,grid:s.grid.slice(),wet:{blue:s.wet.blue.slice(),orange:s.wet.orange.slice()},pieces:{blue:s.pieces.blue.map(p=>({...p})),orange:s.pieces.orange.map(p=>({...p}))},score:{...s.score}};
+  const p=action.action==='wait'?null:o.pieces[t][action.id],r=action.r,c=action.c,i=action.action==='wait'?-1:index(r,c);
   if(action.action==='build'){o.grid[i]=t;p.r=r;p.c=c;}
   else if(action.action==='move'){p.r=r;p.c=c;}
   else if(action.action==='merge') {const q=findPiece(o,t,r,c);if(!q)return o;q.active=false;q.r=-99;q.c=-99;p.r=r;p.c=c;p.level=2;}
@@ -83,6 +76,7 @@ function apply(s,t,action) {
     if(q&&q.level===2)q.level=1;
     else {o.grid[i]=null;if(q){q.active=false;q.r=-99;q.c=-99;}}
   }
+  root.FlowForgeFlow.tick(o,t);
   const flow=Math.min(2,sourceCount(o,t));
   o.score[t]=Math.min(GOAL,o.score[t]+flow);
   return o;
@@ -165,8 +159,7 @@ function choose(state) {
   let best=null,bestValue=-Infinity,bestReply=null;
   for(const r of shortlist){
     // Blue can also choose to wait and collect water. Check this explicitly.
-    const blueAfterWait=Math.min(GOAL,r.sim.score.blue+Math.min(2,sourceCount(r.sim,'blue')));
-    const passState={...r.sim,score:{...r.sim.score,blue:blueAfterWait}};
+    const passState=apply(r.sim,'blue',{action:'wait'});
     let afterReply=evaluate(passState),reply={action:'wait'};
     for(const m of actionList(r.sim,'blue')) {
       const v=evaluate(apply(r.sim,'blue',m));
