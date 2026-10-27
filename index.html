@@ -27,8 +27,8 @@
 </section>
 <aside class="sidebar">
 <div class="panel"><h2>Current action</h2><div class="prompt" id="prompt">Select a Blue generator on the bottom edge to begin.</div><div class="actionrow"><button class="ctl" id="pass">End turn / Wait</button><button class="ctl" id="merge" disabled>Merge Gen1 + Gen1</button><button class="ctl" id="hint">Highlight a route</button></div><div id="winBanner" class="win-banner"></div></div>
-<div class="panel"><h2>Objective</h2><p><b class="blueText">Blue:</b> carry live water from any bottom source to the <b>orange jar at the top center</b>.</p><p><b class="orangeText">Orange:</b> carry fire from any top source to the <b>blue jar at the bottom center</b>.</p><p>First to deliver <b>12 units</b> into the opponent's jar wins. A cut pipeline cannot score. Two or more connected source ports deliver up to <b>2 units per turn</b>.</p><div class="statusrows"><div class="stat"><span>Blue sources reaching jar</span><strong id="bConnected" class="blueText">0</strong></div><div class="stat"><span>Orange sources reaching jar</span><strong id="oConnected" class="orangeText">0</strong></div></div></div>
-<div class="panel"><h2>Controls</h2><ol><li>Tap one of your <b>six generator ports</b> or a generator on the board. If it has <b>only one legal build or movement option</b>, that move happens immediately—no second tap.</li><li>Tap a <b>green outlined adjacent tile</b> to build one pipe and move your generator.</li><li>Tap a <b>red outlined adjacent enemy pipe</b> to destroy it. Your generator stays put.</li><li>Tap a reachable <b>friendly pipe</b> to travel along your network in one turn.</li><li>Your <b>last-used generator stays selected</b> on your next turn, with all legal moves highlighted.</li><li>Every generator starts as <b>1 (Gen1)</b>. Select a Gen1, tap <b>Merge Gen1 + Gen1</b>, then tap a purple-outlined Gen1 reachable through your pipes to form <b>2 (Gen2)</b>.</li><li>Attacking <b>Gen2</b> downgrades it to <b>Gen1</b> and keeps its pipe. Attacking Gen1 destroys the generator permanently along with its pipe. The original source remains available for pipelines, but the lost generator does not respawn.</li><li>When your pipeline reaches the <b>center of the opponent's edge</b>, each of your turns delivers water/fire automatically.</li></ol><p>When not in Merge mode, tapping another friendly generator selects it. Merge consumes one turn. For this prototype, neighboring friendly pipes connect automatically. It has no obstacles, special tiles, pipe rotations, or pressure chambers.</p></div>
+<div class="panel"><h2>Objective</h2><p><b class="blueText">Blue:</b> carry live water from any bottom source to the <b>orange jar at the top center</b>.</p><p><b class="orangeText">Orange:</b> carry fire from any top source to the <b>blue jar at the bottom center</b>.</p><p>First to deliver <b>12 units</b> into the opponent's jar wins. Flow advances <b>one pipe tile per own turn</b>. Disconnected pipes spill; repaired pipes refill gradually. Two or more wet sources deliver up to <b>2 units per turn</b>.</p><div class="statusrows"><div class="stat"><span>Blue wet sources reaching jar</span><strong id="bConnected" class="blueText">0</strong></div><div class="stat"><span>Orange wet sources reaching jar</span><strong id="oConnected" class="orangeText">0</strong></div></div></div>
+<div class="panel"><h2>Controls</h2><ol><li>Tap one of your <b>six generator ports</b> or a generator on the board. If it has <b>only one legal build or movement option</b>, that move happens immediately—no second tap.</li><li>Tap a <b>green outlined adjacent tile</b> to build one pipe and move your generator.</li><li>Tap a <b>red outlined adjacent enemy pipe</b> to destroy it. Your generator stays put.</li><li>Tap a reachable <b>friendly pipe</b> to travel along your network in one turn.</li><li>Your <b>last-used generator stays selected</b> on your next turn, with all legal moves highlighted.</li><li>Every generator starts as <b>1 (Gen1)</b>. Select a Gen1, tap <b>Merge Gen1 + Gen1</b>, then tap a purple-outlined Gen1 reachable through your pipes to form <b>2 (Gen2)</b>.</li><li>Attacking <b>Gen2</b> downgrades it to <b>Gen1</b> and keeps its pipe. Attacking Gen1 destroys the generator permanently along with its pipe. The original source remains available for pipelines, but the lost generator does not respawn.</li><li>Flow advances <b>one tile per own turn</b>. When disconnected, upper segments spill and refill one tile at a time after repairs. The jar only scores after the flow arrives.</li></ol><p>When not in Merge mode, tapping another friendly generator selects it. Merge consumes one turn. For this prototype, neighboring friendly pipes connect automatically. It has no obstacles, special tiles, pipe rotations, or pressure chambers.</p></div>
 <div class="panel"><h2>Match log <span class="pill" id="aiVersion">AI V5</span></h2>
 <p>Full history is kept for this match. Recent sessions are saved locally in this browser when storage is allowed.</p>
 <div class="actionrow"><button class="ctl" id="exportLog">Export logs</button><button class="ctl" id="copyLog">Copy logs</button><button class="ctl" id="pastLog">Past matches</button></div>
@@ -36,6 +36,61 @@
 </aside>
 </div><p class="foot">Experimental game rules — designed to test whether the opposite-edge jar objective makes interesting choices, before building it in Unity.</p>
 </div>
+<script>
+/* Shared water/fire simulation for the FlowForge 7x7 playtest. */
+(function(root){
+'use strict';
+const N=7, ports=[0,1,2,4,5,6], dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+const idx=(r,c)=>r*N+c,inside=(r,c)=>r>=0&&r<N&&c>=0&&c<N,edge=t=>t==='blue'?6:0;
+function connected(s,t){
+ const seen=new Set(),q=[];
+ for(const c of ports){const i=idx(edge(t),c);if(s.grid[i]===t&&!seen.has(i)){seen.add(i);q.push(i);}}
+ for(let p=0;p<q.length;p++){
+  const i=q[p],r=(i/N)|0,c=i%N;
+  for(const [dr,dc] of dirs){const rr=r+dr,cc=c+dc,j=idx(rr,cc);
+   if(inside(rr,cc)&&!seen.has(j)&&s.grid[j]===t){seen.add(j);q.push(j);}}
+ }
+ return seen;
+}
+// Removes water/fire from all wet segments that lost every live source.
+function spill(s){
+ const spilled={blue:0,orange:0};
+ for(const t of ['blue','orange']){
+  const live=connected(s,t),wet=s.wet[t];
+  for(let i=0;i<N*N;i++)if(wet[i]&&!live.has(i)){wet[i]=false;spilled[t]++;}
+ }
+ return spilled;
+}
+// At most one new pipe hop per owner's completed turn, simultaneously on branches.
+function tick(s,t){
+ const spilled=spill(s),powered=connected(s,t),wet=s.wet[t],previous=wet.slice(),next=new Set();
+ for(const c of ports){const i=idx(edge(t),c);if(powered.has(i))next.add(i);}
+ for(let i=0;i<N*N;i++){
+  if(!previous[i]||!powered.has(i))continue;
+  const r=(i/N)|0,c=i%N;
+  for(const [dr,dc] of dirs){const rr=r+dr,cc=c+dc,j=idx(rr,cc);
+   if(inside(rr,cc)&&powered.has(j))next.add(j);}
+ }
+ let filled=0;for(const i of next)if(!wet[i]){wet[i]=true;filled++;}
+ return {spilled,filled};
+}
+// Score only for sources reaching the goal through a continuous WET route.
+function sourceCount(s,t){
+ const start=idx(t==='blue'?0:6,3);
+ if(s.grid[start]!==t||!s.wet[t][start])return 0;
+ const seen=new Set([start]),q=[start],sources=new Set();
+ for(let p=0;p<q.length;p++){
+  const i=q[p],r=(i/N)|0,c=i%N;
+  if(r===edge(t)&&ports.includes(c))sources.add(c);
+  for(const [dr,dc] of dirs){const rr=r+dr,cc=c+dc,j=idx(rr,cc);
+   if(inside(rr,cc)&&!seen.has(j)&&s.grid[j]===t&&s.wet[t][j]){seen.add(j);q.push(j);}}
+ }
+ return sources.size;
+}
+root.FlowForgeFlow={connected,spill,tick,sourceCount};
+})(window);
+
+</script>
 <script>
 /* FlowForge AI V5. Pure search/evaluation module; can be replaced without editing game rules. */
 (function(root) {
@@ -72,14 +127,7 @@ function connected(s,t,a,b) {
   return false;
 }
 function sourceCount(s,t) {
-  const goal=target(t),i=index(goal.r,goal.c);if(s.grid[i]!==t)return 0;
-  const seen=new Set([i]),q=[i],ports=new Set();
-  for(let k=0;k<q.length;k++){
-    const r=(q[k]/N)|0,c=q[k]%N;
-    if(r===edge(t)&&PORTS.includes(c))ports.add(c);
-    for(const [dr,dc] of DIRS){const rr=r+dr,cc=c+dc,ii=index(rr,cc);if(inside(rr,cc)&&!seen.has(ii)&&s.grid[ii]===t){seen.add(ii);q.push(ii);}}
-  }
-  return ports.size;
+ return root.FlowForgeFlow.sourceCount(s,t);
 }
 function legal(s,t,p,r,c) {
   if(!p.active||!inside(r,c))return null;
@@ -112,8 +160,8 @@ function actionList(s,t) {
   return result;
 }
 function apply(s,t,action) {
-  const o={...s,grid:s.grid.slice(),pieces:{blue:s.pieces.blue.map(p=>({...p})),orange:s.pieces.orange.map(p=>({...p}))},score:{...s.score}};
-  const p=o.pieces[t][action.id],r=action.r,c=action.c,i=index(r,c);
+  const o={...s,grid:s.grid.slice(),wet:{blue:s.wet.blue.slice(),orange:s.wet.orange.slice()},pieces:{blue:s.pieces.blue.map(p=>({...p})),orange:s.pieces.orange.map(p=>({...p}))},score:{...s.score}};
+  const p=action.action==='wait'?null:o.pieces[t][action.id],r=action.r,c=action.c,i=action.action==='wait'?-1:index(r,c);
   if(action.action==='build'){o.grid[i]=t;p.r=r;p.c=c;}
   else if(action.action==='move'){p.r=r;p.c=c;}
   else if(action.action==='merge') {const q=findPiece(o,t,r,c);if(!q)return o;q.active=false;q.r=-99;q.c=-99;p.r=r;p.c=c;p.level=2;}
@@ -122,6 +170,7 @@ function apply(s,t,action) {
     if(q&&q.level===2)q.level=1;
     else {o.grid[i]=null;if(q){q.active=false;q.r=-99;q.c=-99;}}
   }
+  root.FlowForgeFlow.tick(o,t);
   const flow=Math.min(2,sourceCount(o,t));
   o.score[t]=Math.min(GOAL,o.score[t]+flow);
   return o;
@@ -204,8 +253,7 @@ function choose(state) {
   let best=null,bestValue=-Infinity,bestReply=null;
   for(const r of shortlist){
     // Blue can also choose to wait and collect water. Check this explicitly.
-    const blueAfterWait=Math.min(GOAL,r.sim.score.blue+Math.min(2,sourceCount(r.sim,'blue')));
-    const passState={...r.sim,score:{...r.sim.score,blue:blueAfterWait}};
+    const passState=apply(r.sim,'blue',{action:'wait'});
     let afterReply=evaluate(passState),reply={action:'wait'};
     for(const m of actionList(r.sim,'blue')) {
       const v=evaluate(apply(r.sim,'blue',m));
@@ -266,6 +314,7 @@ root.FlowForgeAI={version:'V5 · defensive planner',choose};
     if (aiTimeout !== null) { clearTimeout(aiTimeout); aiTimeout = null; }
     S = {
       grid: Array(N*N).fill(null),
+      wet: {blue:Array(N*N).fill(false),orange:Array(N*N).fill(false)},
       pieces: {
         blue: PORTS.map((c,i) => ({id:i, r:7, c, home:c, level:1, active:true})),
         orange: PORTS.map((c,i) => ({id:i, r:-1, c, home:c, level:1, active:true}))
@@ -309,20 +358,7 @@ root.FlowForgeAI={version:'V5 · defensive planner',choose};
     return reached;
   }
   function sourcesToJar(team) {
-    const goal = goalLoc(team), start = idx(goal.r, goal.c);
-    if (S.grid[start] !== team) return 0;
-    const seen = new Set([start]), queue = [[goal.r,goal.c]], touch = new Set();
-    for (let i = 0; i < queue.length; i++) {
-      const [r,c] = queue[i];
-      if (r === ownEdge(team) && PORTS.includes(c)) touch.add(c);
-      for (const [dr,dc] of DIRS) {
-        const rr = r+dr, cc = c+dc;
-        if (!inside(rr,cc)) continue;
-        const k = idx(rr,cc);
-        if (!seen.has(k) && S.grid[k] === team) { seen.add(k); queue.push([rr,cc]); }
-      }
-    }
-    return touch.size;
+    return window.FlowForgeFlow.sourceCount(S,team);
   }
   function areConnected(a,b,team) {
     if (!inside(a.r,a.c) || !inside(b.r,b.c)) return false;
@@ -476,6 +512,9 @@ root.FlowForgeAI={version:'V5 · defensive planner',choose};
     return p && p.active ? p : null;
   }
   function resolveTurn(team) {
+    const effect = window.FlowForgeFlow.tick(S,team);
+    for(const t of ['blue','orange'])if(effect.spilled[t])note(`${pieceName(t)} spilled ${effect.spilled[t]} disconnected pipe segment(s).`,t);
+    if(effect.filled)note(`${pieceName(team)} flow advanced to ${effect.filled} pipe segment(s).`,team);
     const count = sourcesToJar(team), n = Math.min(2,count);
     if (n) {
       S.score[team] = Math.min(GOAL,S.score[team]+n);
@@ -560,7 +599,6 @@ root.FlowForgeAI={version:'V5 · defensive planner',choose};
   }
   function render() {
     if (!S) return;
-    const powers={blue:connectedTiles('blue'),orange:connectedTiles('orange')};
     const p=selectedPiece(), team=S.turn;
     let html='';
     for (let r=0;r<N;r++) for (let c=0;c<N;c++) {
@@ -573,7 +611,7 @@ root.FlowForgeAI={version:'V5 · defensive planner',choose};
       if (mergeable) cls+=' hint-merge';
       if (S.mergeMode && !mergeable && !u) cls+=' merge-dim';
       if (p && S.selected.team===team && p.r===r && p.c===c) cls+=' selected';
-      const powered=t && powers[t].has(idx(r,c));
+      const powered=t && S.wet[t][idx(r,c)];
       const aria=`${pos(r,c)}${t?' '+t+' pipe':''}${u?' Gen'+u.level:''}${mergeable?' merge available':''}${action?' '+action:''}`;
       html+=`<button type="button" class="${cls}" data-r="${r}" data-c="${c}" aria-label="${aria}" title="${aria}">`+
         `${t?pipeSVG(r,c,t,powered):'<span class="mark">·</span>'}`+
