@@ -74,7 +74,15 @@ function apply(s,t,action) {
   else if(action.action==='attack'){
     const foe=other(t),q=findPiece(o,foe,r,c);
     if(q&&q.level===2)q.level=1;
-    else {o.grid[i]=null;if(q){q.active=false;q.r=-99;q.c=-99;}}
+    else if(q){
+      q.active=false;q.r=-99;q.c=-99;
+      o.wet[foe][i]=false;
+      o.grid[i]=t;
+      p.r=r;p.c=c;
+    } else {
+      o.grid[i]=null;
+      o.wet[foe][i]=false;
+    }
   }
   root.FlowForgeFlow.tick(o,t);
   const flow=Math.min(2,sourceCount(o,t));
