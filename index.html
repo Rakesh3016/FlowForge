@@ -31,7 +31,10 @@
 <div class="panel"><h2>Controls</h2><ol><li>Tap one of your <b>six generator ports</b> or a generator on the board. If it has <b>only one legal build or movement option</b>, that move happens immediately—no second tap.</li><li>Tap a <b>green outlined adjacent tile</b> to build one pipe and move your generator.</li><li>Tap a <b>red outlined adjacent enemy pipe</b> to destroy it. Your generator stays put.</li><li>Tap a reachable <b>friendly pipe</b> to travel along your network in one turn.</li><li>Your <b>last-used generator stays selected</b> on your next turn, with all legal moves highlighted.</li><li>Every generator starts as <b>1 (Gen1)</b>. Select a Gen1, tap <b>Merge Gen1 + Gen1</b>, then tap a purple-outlined Gen1 reachable through your pipes to form <b>2 (Gen2)</b>.</li><li>Attacking <b>Gen2</b> downgrades it to <b>Gen1</b> and keeps its pipe. Attacking Gen1 destroys the generator permanently along with its pipe. The original source remains available for pipelines, but the lost generator does not respawn.</li><li>Flow advances <b>one tile per own turn</b>. When disconnected, upper segments spill and refill one tile at a time after repairs. The jar only scores after the flow arrives.</li></ol><p>When not in Merge mode, tapping another friendly generator selects it. Merge consumes one turn. For this prototype, neighboring friendly pipes connect automatically. It has no obstacles, special tiles, pipe rotations, or pressure chambers.</p></div>
 <div class="panel"><h2>Match log <span class="pill" id="aiVersion">AI V5</span></h2>
 <p>Full history is kept for this match. Recent sessions are saved locally in this browser when storage is allowed.</p>
-<div class="actionrow"><button class="ctl" id="exportLog">Export logs</button><button class="ctl" id="copyLog">Copy logs</button><button class="ctl" id="pastLog">Past matches</button></div>
+<div class="actionrow"><button class="ctl primary" id="copyReview">Copy match report</button><button class="ctl" id="downloadLatest">Download match JSON</button><button class="ctl" id="shareIssue">Share via GitHub issue</button></div>
+<p style="font-size:12px">Reports remain in your browser until you share them. GitHub issues are public; the Share button opens a prefilled draft that you must submit.</p>
+<textarea id="reportPreview" class="ctl" style="display:none;width:100%;min-height:150px;resize:vertical" aria-label="Select and copy match report"></textarea>
+<div class="actionrow"><button class="ctl" id="exportLog">Export all matches</button><button class="ctl" id="copyLog">Copy event text</button><button class="ctl" id="pastLog">Past matches</button></div>
 <div id="log" class="log" aria-live="polite"></div><div id="pastMatches" class="log" style="display:none"></div></div>
 </aside>
 </div><p class="foot">Experimental game rules — designed to test whether the opposite-edge jar objective makes interesting choices, before building it in Unity.</p>
@@ -279,6 +282,92 @@ root.FlowForgeAI={version:'V5 · defensive planner',choose};
 })(window);
 </script>
 <script>
+/* FlowForge playtest reports: snapshots, concise diagnosis and user-approved sharing. */
+(function(root) {
+'use strict';
+const boardSize=7;
+const abbreviations={blue:'B',orange:'O'};
+const shortTile=t=>t?abbreviations[t]:'.';
+function snapshot(s,actingTeam,flow) {
+ const rows=(arr,fn)=>Array.from({length:boardSize},(_,r)=>
+   arr.slice(r*boardSize,(r+1)*boardSize).map(fn).join(''));
+ const pieces={};
+ for(const team of ['blue','orange']){
+  pieces[team]=s.pieces[team].map(p=>({
+   id:p.id,level:p.level,home:p.home,active:p.active,
+   square:p.active?(p.r<0||p.r>=boardSize?'dock'+p.home:String.fromCharCode(65+p.c)+(p.r+1)):'lost'
+  }));
+ }
+ return {
+  turn:s.moves,actingTeam,action:s.lastAction||null,
+  ai:actingTeam==='orange'&&s.mode==='ai'?(s.lastAiDecision||null):null,
+  score:{...s.score},winner:s.winner||null,
+  wetCount:{blue:s.wet.blue.filter(Boolean).length,orange:s.wet.orange.filter(Boolean).length},
+  reachingJar:{blue:flow.sourceCount(s,'blue'),orange:flow.sourceCount(s,'orange')},
+  grid:rows(s.grid,shortTile), wet:{
+    blue:rows(s.wet.blue,x=>x?'W':'.'),
+    orange:rows(s.wet.orange,x=>x?'F':'.')
+  },
+  generators:pieces
+ };
+}
+function latest(s,archive){
+ if(s && s.timeline && s.timeline.length)return {
+  matchId:s.matchId,started:s.started,mode:s.mode,winner:s.winner,turn:s.moves,
+  score:s.score,events:s.history,timeline:s.timeline
+ };
+ return (archive||[]).find(m=>m.timeline?.length)||(archive||[]).find(m=>m.events?.length>1)||null;
+}
+function summarize(match,options){
+ const compact=!!(options&&options.compact);
+ if(!match)return 'No match data yet. Play at least one turn first.';
+ const line=[];
+ const snapshots=match.timeline||[];
+ const last=snapshots[snapshots.length-1]||null;
+ const events=match.events||[];
+ line.push('FLOWFORGE MATCH REVIEW');
+ line.push('Match: '+match.matchId+' | Started: '+(match.started||'unknown'));
+ line.push('Mode: '+(match.mode||'unknown')+' | Winner: '+(match.winner||'In progress'));
+ line.push('Score: Blue '+(match.score?.blue||0)+'/12; Orange '+(match.score?.orange||0)+'/12');
+ line.push('Moves completed: '+snapshots.length);
+ if(last){
+  line.push('Last position (B=blue pipe, O=orange pipe, .=empty):');
+  line.push(...last.grid);
+  line.push('Wet tiles: Blue '+last.wetCount.blue+', Orange '+last.wetCount.orange+
+    ' | Sources supplying jars: B'+last.reachingJar.blue+' O'+last.reachingJar.orange);
+  line.push('Generators: '+['blue','orange'].map(t=>t+': '+last.generators[t].filter(p=>p.active).map(p=>'#'+p.id+'G'+p.level+'@'+p.square).join(', ')).join(' | '));
+ }
+ line.push('TURN-BY-TURN SNAPSHOTS (oldest first):');
+ const recent=snapshots.slice(-(compact?16:80));
+ for(const x of recent){
+  const a=x.action||{};
+  const ai=x.ai?.diagnostics;
+  line.push('T'+x.turn+' '+x.actingTeam+': '+(a.action||'action')+' '+(a.to||'')+
+    ' B'+x.score.blue+'/O'+x.score.orange+' wet'+x.wetCount.blue+'/'+x.wetCount.orange+
+    ' supply'+x.reachingJar.blue+'/'+x.reachingJar.orange+
+    (ai?' AI:'+(x.ai.explanation||'')+' reply='+(ai.riskReply||'none'):''));
+ }
+ if(snapshots.length>recent.length)line.push('Earlier turns omitted: '+(snapshots.length-recent.length));
+ if(!compact){
+  line.push('EVENT LOG (oldest first):');
+  for(const e of events.slice(-150))line.push('T'+e.turn+' '+e.team+': '+e.text);
+  if(events.length>150)line.push('Earlier events omitted: '+(events.length-150));
+ }
+ line.push('Full data can be exported as JSON with Download match JSON.');
+ return line.join('\n');
+}
+function issueUrl(match){
+ const title='FlowForge playtest '+(match.matchId||'match')+' — '+(match.winner||'in progress');
+ let body=summarize(match,{compact:true});
+ if(body.length>3500)body=body.slice(0,3400)+'\n[report shortened; use full JSON for exhaustive analysis]';
+ return 'https://github.com/Rakesh3016/FlowForge/issues/new?title='+
+  encodeURIComponent(title.slice(0,120))+'&body='+encodeURIComponent(body);
+}
+root.FlowForgeReport={snapshot,latest,summarize,issueUrl};
+})(window);
+
+</script>
+<script>
 (() => {
   'use strict';
   const N = 7, GOAL = 12, PORTS = [0, 1, 2, 4, 5, 6];
@@ -295,7 +384,7 @@ root.FlowForgeAI={version:'V5 · defensive planner',choose};
   function persist() {
     if (!S) return;
     const entry = {matchId:S.matchId,started:S.started,mode:S.mode,turn:S.moves,
-      winner:S.winner,score:S.score,events:S.history};
+      winner:S.winner,score:S.score,events:S.history,timeline:S.timeline||[]};
     const matchIndex=archive.findIndex(x=>x.matchId===S.matchId);
     if(matchIndex>=0)archive[matchIndex]=entry;else archive.unshift(entry);
     archive=archive.slice(0,30);
@@ -323,7 +412,7 @@ root.FlowForgeAI={version:'V5 · defensive planner',choose};
       selected: null, lastSelected: {blue:null, orange:null},
       mergeMode: false, winner: null, mode: $('mode').value, logs: [],
       started: new Date().toISOString(), matchId: Date.now()+'-'+Math.floor(Math.random()*10000),
-      history: []
+      history: [],timeline: [],lastAction:null,lastAiDecision:null
     };
     note('Blue begins. All generators start at level 1.', 'blue');
     render();
@@ -503,6 +592,7 @@ root.FlowForgeAI={version:'V5 · defensive planner',choose};
     } else return;
     // AI and PvP both retain a separate last-used generator per team.
     S.lastSelected[team] = p.id;
+    S.lastAction = {action,generatorId:id,to:pos(r,c),level:p.level};
     resolveTurn(team);
   }
   function restoreSelection(team) {
@@ -510,6 +600,10 @@ root.FlowForgeAI={version:'V5 · defensive planner',choose};
     const p = id === null ? null : S.pieces[team][id];
     S.selected = p && p.active ? {team,id} : null;
     return p && p.active ? p : null;
+  }
+  function captureTurn(team) {
+    S.timeline.push(window.FlowForgeReport.snapshot(S,team,window.FlowForgeFlow));
+    persist();
   }
   function resolveTurn(team) {
     const effect = window.FlowForgeFlow.tick(S,team);
@@ -523,8 +617,10 @@ root.FlowForgeAI={version:'V5 · defensive planner',choose};
     if (S.score[team] >= GOAL) {
       S.winner = team; S.selected = null; S.mergeMode = false;
       note(`🏆 ${pieceName(team)} wins — the enemy jar is full!`,team);
+      captureTurn(team);
       render(); return;
     }
+    captureTurn(team);
     S.turn = other(team); S.moves++; S.mergeMode = false;
     const restored = restoreSelection(S.turn);
     render();
@@ -540,6 +636,7 @@ root.FlowForgeAI={version:'V5 · defensive planner',choose};
   function pass() {
     if (S.winner || (S.turn === 'orange' && S.mode === 'ai')) return;
     note(`${pieceName(S.turn)} waited.`,S.turn);
+    S.lastAction={action:'wait'};
     resolveTurn(S.turn);
   }
   // AI lives in ai.js. All rules/board interaction remain in this HTML's engine.
@@ -548,11 +645,12 @@ root.FlowForgeAI={version:'V5 · defensive planner',choose};
     aiTimeout = null;
     if (!S || S.winner || S.turn !== 'orange' || S.mode !== 'ai') return;
     const result=window.FlowForgeAI.choose(S);
+    S.lastAiDecision = {explanation:result.explanation,diagnostics:result.diagnostics,move:result.move};
     if (result.move) {
       const a=result.move, d=result.diagnostics;
       note(`AI: ${a.action} ${pos(a.r,a.c)} · ${result.explanation} [${d.candidates} moves, ${d.shortlist} lookahead, risk ${d.riskReply}]`, 'orange');
       doAction('orange',a.id,a.r,a.c,a.action);
-    } else {note('Orange AI waits.', 'orange');resolveTurn('orange');}
+    } else {note('Orange AI waits.', 'orange');S.lastAction={action:'wait'};resolveTurn('orange');}
   }
   function evaluateMove(team,p,r,c,action) {
     // Hint uses same current AI evaluation for the Orange player, but keeps Blue's
@@ -676,6 +774,37 @@ root.FlowForgeAI={version:'V5 · defensive planner',choose};
   $('merge').addEventListener('click',mergeToggle);
   $('aiVersion').textContent=window.FlowForgeAI.version;
   function wholeLog() {return S.history.map(e=>`Turn ${e.turn} ${e.team.toUpperCase()}: ${e.text}`).join('\n');}
+  function lastMatchReport() {
+    persist();
+    return window.FlowForgeReport.latest(S,archive);
+  }
+  $('copyReview').addEventListener('click',async ()=>{
+    const report=window.FlowForgeReport.summarize(lastMatchReport());
+    try {
+      await navigator.clipboard.writeText(report);
+      say('Match report copied! Return to ChatGPT and paste it. You can keep the game tab open.');
+    } catch(_) {
+      const el=$('reportPreview');el.style.display='block';el.value=report;el.focus();el.select();
+      say('Clipboard was blocked. Select and copy the report in the text box below, then paste it into ChatGPT.');
+    }
+  });
+  $('downloadLatest').addEventListener('click',()=>{
+    const m=lastMatchReport();
+    if(!m){say('No match found. Play a turn first.');return;}
+    const data=JSON.stringify({version:'flowforge-playtest-report-v1',ai:window.FlowForgeAI.version,match:m},null,2);
+    const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
+    const link=document.createElement('a');link.href=url;link.download='flowforge-latest-match.json';link.click();
+    setTimeout(()=>URL.revokeObjectURL(url),5000);
+    say('Downloaded latest match with turn snapshots, water positions and AI choices. Attach it to ChatGPT for full review.');
+  });
+  $('shareIssue').addEventListener('click',()=>{
+    const m=lastMatchReport();
+    if(!m){say('No match found. Play a turn first.');return;}
+    const url=window.FlowForgeReport.issueUrl(m);
+    const opened=window.open(url,'_blank','noopener,noreferrer');
+    if(!opened) say('Your browser blocked a new tab. Use Copy match report instead.');
+    else say('GitHub issue draft opened. Click Submit new issue on GitHub, then tell ChatGPT to check the latest FlowForge issue.');
+  });
   $('copyLog').addEventListener('click', async ()=>{
     try { await navigator.clipboard.writeText(wholeLog());say('Full current match log copied.'); }
     catch (_) {say('Clipboard not available here. Use Export logs instead.');}
