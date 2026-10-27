@@ -801,9 +801,8 @@ root.FlowForgeReport={snapshot,latest,summarize,issueUrl};
     const m=lastMatchReport();
     if(!m){say('No match found. Play a turn first.');return;}
     const url=window.FlowForgeReport.issueUrl(m);
-    const opened=window.open(url,'_blank','noopener,noreferrer');
-    if(!opened) say('Your browser blocked a new tab. Use Copy match report instead.');
-    else say('GitHub issue draft opened. Click Submit new issue on GitHub, then tell ChatGPT to check the latest FlowForge issue.');
+    const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.click();
+    say('GitHub issue draft requested. Click Submit new issue on GitHub, then tell ChatGPT to check the latest FlowForge issue. If it did not open, use Copy match report.');
   });
   $('copyLog').addEventListener('click', async ()=>{
     try { await navigator.clipboard.writeText(wholeLog());say('Full current match log copied.'); }
