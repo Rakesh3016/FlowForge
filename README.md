@@ -28,3 +28,6 @@ The browser stores recent matches locally, including a post-turn snapshot of the
 
 ## Capture-on-kill combat
 Attacking an adjacent Gen1 destroys that generator and its pipe, advances the attacker into the vacated tile, and converts the tile to the attacker's pipe (initially dry). A supporting enemy generator can counterattack on the following turn. Gen2 survives one hit, downgrading to Gen1 without attacker movement. Empty enemy pipes are destroyed without attacker movement. The progressive flow and scoring rules are unchanged.
+
+### Occupying destroyed empty pipes
+Attacking and destroying an unoccupied enemy pipe now moves the attacker onto that tile and changes it to an initially dry friendly pipe. The original tile remains. Nearby enemy generators can recapture it on their next turn. Gen1 kills already work this way; a surviving Gen2 blocks advancement. Fluid movement and scoring rules are otherwise unchanged.
