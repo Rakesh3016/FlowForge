@@ -1,7 +1,7 @@
-/* FlowForge AI V4. Pure search/evaluation module; can be replaced without editing game rules. */
+/* FlowForge AI V5. Pure search/evaluation module; can be replaced without editing game rules. */
 (function(root) {
 'use strict';
-const N=7, GOAL=6, PORTS=[0,1,2,4,5,6], DIRS=[[1,0],[-1,0],[0,1],[0,-1]];
+const N=7, GOAL=12, PORTS=[0,1,2,4,5,6], DIRS=[[1,0],[-1,0],[0,1],[0,-1]];
 const index=(r,c)=>r*N+c;
 const inside=(r,c)=>r>=0&&r<N&&c>=0&&c<N;
 const other=t=>t==='blue'?'orange':'blue';
@@ -107,34 +107,36 @@ function networkDistance(s,t) {
   const g=target(t);return dist[index(g.r,g.c)];
 }
 function evaluate(s) {
-  if(s.score.orange>=GOAL)return 100000;
-  if(s.score.blue>=GOAL)return -100000;
-  // Higher is better for Orange AI.
-  let value=(s.score.orange-s.score.blue)*145;
+  if(s.score.orange>=GOAL)return 1000000;
+  if(s.score.blue>=GOAL)return -1000000;
+  // Positive values favor Orange. Reachable flow is more valuable near the end.
   const orangeFlow=Math.min(2,sourceCount(s,'orange'));
   const blueFlow=Math.min(2,sourceCount(s,'blue'));
-  value+=(orangeFlow-blueFlow)*95;
-  value+=(networkDistance(s,'blue')-networkDistance(s,'orange'))*23;
-  const oPowered=connectivity(s,'orange'),bPowered=connectivity(s,'blue');
-  value+=(oPowered.size-bPowered.size)*2.4;
+  const urgency=s.score.blue>=GOAL-4?2.0:1;
+  let value=(s.score.orange-s.score.blue)*220;
+  value+=(orangeFlow-blueFlow)*170*urgency;
+  value+=(networkDistance(s,'blue')-networkDistance(s,'orange'))*42;
+  const oPowered=connectivity(s,'orange'), bPowered=connectivity(s,'blue');
+  value+=(oPowered.size-bPowered.size)*3.5;
   const orangePieces=active(s,'orange'),bluePieces=active(s,'blue');
-  // Protect limited, permanently destroyable builders.
-  value+=(orangePieces.length-bluePieces.length)*122;
-  value+=(orangePieces.reduce((a,p)=>a+(p.level-1),0)-bluePieces.reduce((a,p)=>a+(p.level-1),0))*26;
+  value+=(orangePieces.length-bluePieces.length)*185;
+  value+=(orangePieces.reduce((a,p)=>a+(p.level-1),0)-bluePieces.reduce((a,p)=>a+(p.level-1),0))*60;
   for(const t of ['orange','blue']) {
-    let danger=0,front=99;
     const enemies=active(s,other(t));
     const goal=target(t);
+    let front=20,exposure=0;
     for(const p of active(s,t)) {
-      if(inside(p.r,p.c)){
-        front=Math.min(front,Math.abs(p.r-goal.r)+Math.abs(p.c-goal.c));
-        if(enemies.some(q=>adjacent(q,p.r,p.c))) danger+=p.level===1?88:42;
-        // Extra protection for the generator currently maintaining a route.
-        if(s.grid[index(p.r,p.c)]===t && !connectivity(s,t).has(index(p.r,p.c)))danger+=6;
-      }
+      if(!inside(p.r,p.c))continue;
+      const d=Math.abs(p.r-goal.r)+Math.abs(p.c-goal.c);
+      front=Math.min(front,d);
+      const enemyDistance=enemies.reduce((best,q)=>inside(q.r,q.c)?Math.min(best,Math.abs(q.r-p.r)+Math.abs(q.c-p.c)):best,99);
+      // An adjacent enemy can destroy a Gen1 immediately (Gen2 loses one level).
+      if(enemyDistance===1)exposure+=p.level===1?250:105;
+      else if(enemyDistance===2)exposure+=p.level===1?17:8;
+      if(s.grid[index(p.r,p.c)]===t && !((t==='orange'?oPowered:bPowered).has(index(p.r,p.c))))exposure+=10;
     }
-    if(front===99)front=7;
-    const term=-1.25*front-danger;
+    if(front===20)front=10;
+    const term=-front*19-exposure;
     value+=t==='orange'?term:-term;
   }
   return value;
@@ -142,32 +144,49 @@ function evaluate(s) {
 function compareMoves(a,b){return a.id-b.id||a.r-b.r||a.c-b.c||a.action.localeCompare(b.action);}
 function choose(state) {
   const actions=actionList(state,'orange');
-  if(!actions.length)return {move:null,explanation:'No legal moves; passing turn.',diagnostics:{candidates:0}};
-  const ranked=actions.map(a=>({a,sim:apply(state,'orange',a)}));
-  for(const r of ranked)r.value=evaluate(r.sim);
+  if(!actions.length)return {move:null,explanation:'No legal moves; passing turn.',diagnostics:{candidates:0,shortlist:0,riskReply:'none'}};
+  const blueFlowBefore=sourceCount(state,'blue');
+  const ranked=actions.map(a=>{
+    const sim=apply(state,'orange',a);
+    const value=evaluate(sim);
+    const cut=blueFlowBefore>0 && sourceCount(sim,'blue')<blueFlowBefore;
+    return {a,sim,value,cut};
+  });
   ranked.sort((x,y)=>y.value-x.value||compareMoves(x.a,y.a));
-  // Look ahead at the human's strongest response for the best immediate options.
-  // Keep this bounded to avoid stalls on mobile devices.
-  const shortlist=ranked.slice(0,Math.min(14,ranked.length));
-  let best=null, bestValue=-Infinity, bestReply=null;
+  // Don't prune away a necessary pipe cut just because expansion scores well now.
+  const shortlist=ranked.slice(0,Math.min(22,ranked.length));
+  const included=new Set(shortlist.map(x=>x.a.id+':'+x.a.r+':'+x.a.c+':'+x.a.action));
+  let extras=0;
+  for(const item of ranked){
+    if(extras>=8)break;
+    const key=item.a.id+':'+item.a.r+':'+item.a.c+':'+item.a.action;
+    if(item.cut&&!included.has(key)){shortlist.push(item);included.add(key);extras++;}
+  }
+  let best=null,bestValue=-Infinity,bestReply=null;
   for(const r of shortlist){
-    const responses=actionList(r.sim,'blue');
-    let afterReply=r.value,reply=null;
-    for(const m of responses){const v=evaluate(apply(r.sim,'blue',m));if(v<afterReply){afterReply=v;reply=m;}}
-    const value=.34*r.value+.66*afterReply;
-    if(value>bestValue+0.000001||(Math.abs(value-bestValue)<0.000001&&best&&compareMoves(r.a,best.a)<0)){
+    // Blue can also choose to wait and collect water. Check this explicitly.
+    const blueAfterWait=Math.min(GOAL,r.sim.score.blue+Math.min(2,sourceCount(r.sim,'blue')));
+    const passState={...r.sim,score:{...r.sim.score,blue:blueAfterWait}};
+    let afterReply=evaluate(passState),reply={action:'wait'};
+    for(const m of actionList(r.sim,'blue')) {
+      const v=evaluate(apply(r.sim,'blue',m));
+      if(v<afterReply){afterReply=v;reply=m;}
+      if(afterReply<=-1000000)break;
+    }
+    const value=.20*r.value+.80*afterReply;
+    if(value>bestValue+1e-6||(Math.abs(value-bestValue)<1e-6&&best&&compareMoves(r.a,best.a)<0)){
       best=r;bestValue=value;bestReply=reply;
     }
   }
-  // Clear, human-readable diagnostics help debug choices and compare strengths.
   const a=best.a;
   let explanation='';
-  if(a.action==='attack')explanation='Disrupts an enemy pipe or generator';
-  else if(a.action==='merge')explanation='Protects a generator with a Gen2 merge';
-  else if(a.action==='move')explanation='Repositions along the connected pipeline';
-  else explanation='Expands toward the opponent’s jar';
-  if(bestReply && bestReply.action==='attack') explanation+='; anticipates a Blue counterattack';
-  return {move:a,explanation,diagnostics:{candidates:actions.length,shortlist:shortlist.length,immediate:Number(best.value.toFixed(1)),afterReply:Number(bestValue.toFixed(1)),riskReply:bestReply?.action||'none'}};
+  if(best.cut)explanation='Cuts a powered Blue supply route';
+  else if(a.action==='attack')explanation='Disrupts an enemy pipe or generator';
+  else if(a.action==='merge')explanation='Combines two generators into a Gen2';
+  else if(a.action==='move')explanation='Repositions along the connected network';
+  else explanation='Expands its powered pipeline toward the jar';
+  if(bestReply?.action==='attack')explanation+='; expects a Blue counterattack';
+  return {move:a,explanation,diagnostics:{candidates:actions.length,shortlist:shortlist.length,immediate:Number(best.value.toFixed(1)),afterReply:Number(bestValue.toFixed(1)),riskReply:bestReply?.action||'none',threat:state.score.blue+'/'+GOAL}};
 }
-root.FlowForgeAI={version:'V4 · reply-aware',choose};
+root.FlowForgeAI={version:'V5 · defensive planner',choose};
 })(window);
