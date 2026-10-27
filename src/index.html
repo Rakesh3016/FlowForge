@@ -28,7 +28,7 @@
 <aside class="sidebar">
 <div class="panel"><h2>Current action</h2><div class="prompt" id="prompt">Select a Blue generator on the bottom edge to begin.</div><div class="actionrow"><button class="ctl" id="pass">End turn / Wait</button><button class="ctl" id="merge" disabled>Merge Gen1 + Gen1</button><button class="ctl" id="hint">Highlight a route</button></div><div id="winBanner" class="win-banner"></div></div>
 <div class="panel"><h2>Objective</h2><p><b class="blueText">Blue:</b> carry live water from any bottom source to the <b>orange jar at the top center</b>.</p><p><b class="orangeText">Orange:</b> carry fire from any top source to the <b>blue jar at the bottom center</b>.</p><p>First to deliver <b>12 units</b> into the opponent's jar wins. Flow advances <b>one pipe tile per own turn</b>. Disconnected pipes spill; repaired pipes refill gradually. Two or more wet sources deliver up to <b>2 units per turn</b>.</p><div class="statusrows"><div class="stat"><span>Blue wet sources reaching jar</span><strong id="bConnected" class="blueText">0</strong></div><div class="stat"><span>Orange wet sources reaching jar</span><strong id="oConnected" class="orangeText">0</strong></div></div></div>
-<div class="panel"><h2>Controls</h2><ol><li>Tap one of your <b>six generator ports</b> or a generator on the board. If it has <b>only one legal build or movement option</b>, that move happens immediately—no second tap.</li><li>Tap a <b>green outlined adjacent tile</b> to build one pipe and move your generator.</li><li>Tap a <b>red outlined adjacent enemy pipe</b> to destroy it. Your generator stays put.</li><li>Tap a reachable <b>friendly pipe</b> to travel along your network in one turn.</li><li>Your <b>last-used generator stays selected</b> on your next turn, with all legal moves highlighted.</li><li>Every generator starts as <b>1 (Gen1)</b>. Select a Gen1, tap <b>Merge Gen1 + Gen1</b>, then tap a purple-outlined Gen1 reachable through your pipes to form <b>2 (Gen2)</b>.</li><li>Attacking <b>Gen2</b> downgrades it to <b>Gen1</b> and keeps its pipe. Attacking Gen1 destroys the generator permanently along with its pipe. The original source remains available for pipelines, but the lost generator does not respawn.</li><li>Flow advances <b>one tile per own turn</b>. When disconnected, upper segments spill and refill one tile at a time after repairs. The jar only scores after the flow arrives.</li></ol><p>When not in Merge mode, tapping another friendly generator selects it. Merge consumes one turn. For this prototype, neighboring friendly pipes connect automatically. It has no obstacles, special tiles, pipe rotations, or pressure chambers.</p></div>
+<div class="panel"><h2>Controls</h2><ol><li>Tap one of your <b>six generator ports</b> or a generator on the board. If it has <b>only one legal build or movement option</b>, that move happens immediately—no second tap.</li><li>Tap a <b>green outlined adjacent tile</b> to build one pipe and move your generator.</li><li>Tap a <b>red outlined adjacent enemy tile</b> to attack. Killing an enemy Gen1 forces your attacker to <b>advance into that tile</b> and capture it, exposing it to a counterattack. Attacking an empty pipe leaves the attacker in place.</li><li>Tap a reachable <b>friendly pipe</b> to travel along your network in one turn.</li><li>Your <b>last-used generator stays selected</b> on your next turn, with all legal moves highlighted.</li><li>Every generator starts as <b>1 (Gen1)</b>. Select a Gen1, tap <b>Merge Gen1 + Gen1</b>, then tap a purple-outlined Gen1 reachable through your pipes to form <b>2 (Gen2)</b>.</li><li>Attacking <b>Gen2</b> downgrades it to Gen1 without advancing, since the defender survived. Killing a Gen1 destroys it permanently and captures its tile. Supporting generators may counterattack on the next turn; retaliation is not automatic.</li><li>Flow advances <b>one tile per own turn</b>. When disconnected, upper segments spill and refill one tile at a time after repairs. The jar only scores after the flow arrives.</li></ol><p>When not in Merge mode, tapping another friendly generator selects it. Merge consumes one turn. For this prototype, neighboring friendly pipes connect automatically. It has no obstacles, special tiles, pipe rotations, or pressure chambers.</p></div>
 <div class="panel"><h2>Match log <span class="pill" id="aiVersion">AI V5</span></h2>
 <p>Full history is kept for this match. Recent sessions are saved locally in this browser when storage is allowed.</p>
 <div class="actionrow"><button class="ctl primary" id="copyReview">Copy match report</button><button class="ctl" id="downloadLatest">Download match JSON</button><button class="ctl" id="shareIssue">Share via GitHub issue</button></div>
@@ -252,17 +252,25 @@
       if (legal(team,p,r,c) !== 'attack') return;
       const foe = other(team), struck = pieceAt(foe,r,c);
       if (struck && struck.level === 2) {
+        // A surviving defender still occupies the tile, so there is no advance.
         struck.level = 1;
-        // The target, the pipe beneath it, and its current position all survive.
-        note(`${pieceName(team)} hit ${pieceName(foe)} Gen2 at ${pos(r,c)} → downgraded to Gen1.`,team);
+        note(`${pieceName(team)} hit ${pieceName(foe)} Gen2 at ${pos(r,c)} → downgraded to Gen1; attacker held position.`,team);
+      } else if (struck) {
+        // Destroy the Gen1 and its old pipe, then occupy its vacated tile.
+        // A supporting enemy generator may counterattack on its next turn.
+        const defeatedId = struck.id;
+        struck.active = false; struck.r = -99; struck.c = -99;
+        if (S.lastSelected[foe] === defeatedId) S.lastSelected[foe] = null;
+        if (S.selected?.team === foe && S.selected.id === defeatedId) S.selected = null;
+        S.wet[foe][idx(r,c)] = false;
+        S.grid[idx(r,c)] = team;
+        p.r = r; p.c = c;
+        note(`${pieceName(team)} Gen${p.level} destroyed ${pieceName(foe)} Gen1 and its pipe at ${pos(r,c)}, then advanced and captured the tile. Counterattack possible.`,team);
       } else {
+        // Destroying an unoccupied enemy pipe does not move the attacker.
         S.grid[idx(r,c)] = null;
-        if (struck) {
-          struck.active = false; struck.r = -99; struck.c = -99;
-          if (S.lastSelected[foe] === struck.id) S.lastSelected[foe] = null;
-          if (S.selected?.team === foe && S.selected.id === struck.id) S.selected = null;
-        }
-        note(`${pieceName(team)} destroyed ${pieceName(foe)} ${struck?'Gen1 permanently (no respawn) and its pipe':'pipe'} at ${pos(r,c)}.`,team);
+        S.wet[foe][idx(r,c)] = false;
+        note(`${pieceName(team)} destroyed an empty ${pieceName(foe)} pipe at ${pos(r,c)}; attacker held position.`,team);
       }
     } else return;
     // AI and PvP both retain a separate last-used generator per team.
