@@ -18,18 +18,18 @@
 </head>
 <body>
 <div class="shell">
-<header class="topbar"><div><div class="brand">FLOWFORGE</div><div class="subtitle">7×7 · Water vs Fire · AI V4 Playtest</div></div><div class="top-actions"><select class="ctl" id="mode" aria-label="Opponent mode"><option value="ai">Play vs AI</option><option value="pvp">Local 2 Players</option></select><button class="ctl primary" id="restart">↻ New match</button></div></header>
+<header class="topbar"><div><div class="brand">FLOWFORGE</div><div class="subtitle">7×7 · Water vs Fire · AI V5 Playtest</div></div><div class="top-actions"><select class="ctl" id="mode" aria-label="Opponent mode"><option value="ai">Play vs AI</option><option value="pvp">Local 2 Players</option></select><button class="ctl primary" id="restart">↻ New match</button></div></header>
 <div class="layout">
 <section class="playarea">
-<div class="scorebar"><div class="score blue"><b>💧 BLUE <span id="bScore" class="num">0/6</span></b><div class="progress"><div id="bProgress"></div></div></div><div class="turn-indicator"><strong id="turnDisplay">BLUE TURN</strong><span class="round" id="roundDisplay">Turn 1</span></div><div class="score o"><b>🔥 ORANGE <span id="oScore" class="num">0/6</span></b><div class="progress"><div id="oProgress"></div></div></div></div>
+<div class="scorebar"><div class="score blue"><b>💧 BLUE <span id="bScore" class="num">0/12</span></b><div class="progress"><div id="bProgress"></div></div></div><div class="turn-indicator"><strong id="turnDisplay">BLUE TURN</strong><span class="round" id="roundDisplay">Turn 1</span></div><div class="score o"><b>🔥 ORANGE <span id="oScore" class="num">0/12</span></b><div class="progress"><div id="oProgress"></div></div></div></div>
 <div class="board-shell"><div class="rail top" id="topRail"></div><div class="board-frame"><div id="board" class="board" role="group" aria-label="Seven by seven gameplay grid"></div></div><div class="rail bottom" id="bottomRail"></div></div>
 <p class="board-note">Orange generators ×3 · enemy jar · generators ×3 (top) &nbsp;·&nbsp; Blue generators ×3 · own jar · generators ×3 (bottom)</p>
 </section>
 <aside class="sidebar">
 <div class="panel"><h2>Current action</h2><div class="prompt" id="prompt">Select a Blue generator on the bottom edge to begin.</div><div class="actionrow"><button class="ctl" id="pass">End turn / Wait</button><button class="ctl" id="merge" disabled>Merge Gen1 + Gen1</button><button class="ctl" id="hint">Highlight a route</button></div><div id="winBanner" class="win-banner"></div></div>
-<div class="panel"><h2>Objective</h2><p><b class="blueText">Blue:</b> carry live water from any bottom source to the <b>orange jar at the top center</b>.</p><p><b class="orangeText">Orange:</b> carry fire from any top source to the <b>blue jar at the bottom center</b>.</p><p>First to deliver <b>6 units</b> into the opponent's jar wins. A cut pipeline cannot score. Two or more connected source ports deliver up to <b>2 units per turn</b>.</p><div class="statusrows"><div class="stat"><span>Blue sources reaching jar</span><strong id="bConnected" class="blueText">0</strong></div><div class="stat"><span>Orange sources reaching jar</span><strong id="oConnected" class="orangeText">0</strong></div></div></div>
+<div class="panel"><h2>Objective</h2><p><b class="blueText">Blue:</b> carry live water from any bottom source to the <b>orange jar at the top center</b>.</p><p><b class="orangeText">Orange:</b> carry fire from any top source to the <b>blue jar at the bottom center</b>.</p><p>First to deliver <b>12 units</b> into the opponent's jar wins. A cut pipeline cannot score. Two or more connected source ports deliver up to <b>2 units per turn</b>.</p><div class="statusrows"><div class="stat"><span>Blue sources reaching jar</span><strong id="bConnected" class="blueText">0</strong></div><div class="stat"><span>Orange sources reaching jar</span><strong id="oConnected" class="orangeText">0</strong></div></div></div>
 <div class="panel"><h2>Controls</h2><ol><li>Tap one of your <b>six generator ports</b> or a generator on the board. If it has <b>only one legal build or movement option</b>, that move happens immediately—no second tap.</li><li>Tap a <b>green outlined adjacent tile</b> to build one pipe and move your generator.</li><li>Tap a <b>red outlined adjacent enemy pipe</b> to destroy it. Your generator stays put.</li><li>Tap a reachable <b>friendly pipe</b> to travel along your network in one turn.</li><li>Your <b>last-used generator stays selected</b> on your next turn, with all legal moves highlighted.</li><li>Every generator starts as <b>1 (Gen1)</b>. Select a Gen1, tap <b>Merge Gen1 + Gen1</b>, then tap a purple-outlined Gen1 reachable through your pipes to form <b>2 (Gen2)</b>.</li><li>Attacking <b>Gen2</b> downgrades it to <b>Gen1</b> and keeps its pipe. Attacking Gen1 destroys the generator permanently along with its pipe. The original source remains available for pipelines, but the lost generator does not respawn.</li><li>When your pipeline reaches the <b>center of the opponent's edge</b>, each of your turns delivers water/fire automatically.</li></ol><p>When not in Merge mode, tapping another friendly generator selects it. Merge consumes one turn. For this prototype, neighboring friendly pipes connect automatically. It has no obstacles, special tiles, pipe rotations, or pressure chambers.</p></div>
-<div class="panel"><h2>Match log <span class="pill" id="aiVersion">AI V4</span></h2>
+<div class="panel"><h2>Match log <span class="pill" id="aiVersion">AI V5</span></h2>
 <p>Full history is kept for this match. Recent sessions are saved locally in this browser when storage is allowed.</p>
 <div class="actionrow"><button class="ctl" id="exportLog">Export logs</button><button class="ctl" id="copyLog">Copy logs</button><button class="ctl" id="pastLog">Past matches</button></div>
 <div id="log" class="log" aria-live="polite"></div><div id="pastMatches" class="log" style="display:none"></div></div>
@@ -40,7 +40,7 @@
 <script>
 (() => {
   'use strict';
-  const N = 7, GOAL = 6, PORTS = [0, 1, 2, 4, 5, 6];
+  const N = 7, GOAL = 12, PORTS = [0, 1, 2, 4, 5, 6];
   const DIRS = [[1,0], [-1,0], [0,1], [0,-1]];
   const COLORS = { blue: '#45cfff', orange: '#ff9950' };
   const $ = id => document.getElementById(id);
@@ -451,7 +451,7 @@
   });
   $('exportLog').addEventListener('click',()=>{
     persist();
-    const data=JSON.stringify({version:'flowforge-7x7-v4',ai:window.FlowForgeAI.version,exported:new Date().toISOString(),matches:archive},null,2);
+    const data=JSON.stringify({version:'flowforge-7x7-v5',ai:window.FlowForgeAI.version,exported:new Date().toISOString(),matches:archive},null,2);
     const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
     const a=document.createElement('a');a.href=url;a.download='flowforge-match-logs.json';a.click();
     setTimeout(()=>URL.revokeObjectURL(url),5000);
