@@ -18,18 +18,18 @@
 </head>
 <body>
 <div class="shell">
-<header class="topbar"><div><div class="brand">FLOWFORGE</div><div class="subtitle">7×7 · Water vs Fire · AI V4 Playtest</div></div><div class="top-actions"><select class="ctl" id="mode" aria-label="Opponent mode"><option value="ai">Play vs AI</option><option value="pvp">Local 2 Players</option></select><button class="ctl primary" id="restart">↻ New match</button></div></header>
+<header class="topbar"><div><div class="brand">FLOWFORGE</div><div class="subtitle">7×7 · Water vs Fire · AI V5 Playtest</div></div><div class="top-actions"><select class="ctl" id="mode" aria-label="Opponent mode"><option value="ai">Play vs AI</option><option value="pvp">Local 2 Players</option></select><button class="ctl primary" id="restart">↻ New match</button></div></header>
 <div class="layout">
 <section class="playarea">
-<div class="scorebar"><div class="score blue"><b>💧 BLUE <span id="bScore" class="num">0/6</span></b><div class="progress"><div id="bProgress"></div></div></div><div class="turn-indicator"><strong id="turnDisplay">BLUE TURN</strong><span class="round" id="roundDisplay">Turn 1</span></div><div class="score o"><b>🔥 ORANGE <span id="oScore" class="num">0/6</span></b><div class="progress"><div id="oProgress"></div></div></div></div>
+<div class="scorebar"><div class="score blue"><b>💧 BLUE <span id="bScore" class="num">0/12</span></b><div class="progress"><div id="bProgress"></div></div></div><div class="turn-indicator"><strong id="turnDisplay">BLUE TURN</strong><span class="round" id="roundDisplay">Turn 1</span></div><div class="score o"><b>🔥 ORANGE <span id="oScore" class="num">0/12</span></b><div class="progress"><div id="oProgress"></div></div></div></div>
 <div class="board-shell"><div class="rail top" id="topRail"></div><div class="board-frame"><div id="board" class="board" role="group" aria-label="Seven by seven gameplay grid"></div></div><div class="rail bottom" id="bottomRail"></div></div>
 <p class="board-note">Orange generators ×3 · enemy jar · generators ×3 (top) &nbsp;·&nbsp; Blue generators ×3 · own jar · generators ×3 (bottom)</p>
 </section>
 <aside class="sidebar">
 <div class="panel"><h2>Current action</h2><div class="prompt" id="prompt">Select a Blue generator on the bottom edge to begin.</div><div class="actionrow"><button class="ctl" id="pass">End turn / Wait</button><button class="ctl" id="merge" disabled>Merge Gen1 + Gen1</button><button class="ctl" id="hint">Highlight a route</button></div><div id="winBanner" class="win-banner"></div></div>
-<div class="panel"><h2>Objective</h2><p><b class="blueText">Blue:</b> carry live water from any bottom source to the <b>orange jar at the top center</b>.</p><p><b class="orangeText">Orange:</b> carry fire from any top source to the <b>blue jar at the bottom center</b>.</p><p>First to deliver <b>6 units</b> into the opponent's jar wins. A cut pipeline cannot score. Two or more connected source ports deliver up to <b>2 units per turn</b>.</p><div class="statusrows"><div class="stat"><span>Blue sources reaching jar</span><strong id="bConnected" class="blueText">0</strong></div><div class="stat"><span>Orange sources reaching jar</span><strong id="oConnected" class="orangeText">0</strong></div></div></div>
+<div class="panel"><h2>Objective</h2><p><b class="blueText">Blue:</b> carry live water from any bottom source to the <b>orange jar at the top center</b>.</p><p><b class="orangeText">Orange:</b> carry fire from any top source to the <b>blue jar at the bottom center</b>.</p><p>First to deliver <b>12 units</b> into the opponent's jar wins. A cut pipeline cannot score. Two or more connected source ports deliver up to <b>2 units per turn</b>.</p><div class="statusrows"><div class="stat"><span>Blue sources reaching jar</span><strong id="bConnected" class="blueText">0</strong></div><div class="stat"><span>Orange sources reaching jar</span><strong id="oConnected" class="orangeText">0</strong></div></div></div>
 <div class="panel"><h2>Controls</h2><ol><li>Tap one of your <b>six generator ports</b> or a generator on the board. If it has <b>only one legal build or movement option</b>, that move happens immediately—no second tap.</li><li>Tap a <b>green outlined adjacent tile</b> to build one pipe and move your generator.</li><li>Tap a <b>red outlined adjacent enemy pipe</b> to destroy it. Your generator stays put.</li><li>Tap a reachable <b>friendly pipe</b> to travel along your network in one turn.</li><li>Your <b>last-used generator stays selected</b> on your next turn, with all legal moves highlighted.</li><li>Every generator starts as <b>1 (Gen1)</b>. Select a Gen1, tap <b>Merge Gen1 + Gen1</b>, then tap a purple-outlined Gen1 reachable through your pipes to form <b>2 (Gen2)</b>.</li><li>Attacking <b>Gen2</b> downgrades it to <b>Gen1</b> and keeps its pipe. Attacking Gen1 destroys the generator permanently along with its pipe. The original source remains available for pipelines, but the lost generator does not respawn.</li><li>When your pipeline reaches the <b>center of the opponent's edge</b>, each of your turns delivers water/fire automatically.</li></ol><p>When not in Merge mode, tapping another friendly generator selects it. Merge consumes one turn. For this prototype, neighboring friendly pipes connect automatically. It has no obstacles, special tiles, pipe rotations, or pressure chambers.</p></div>
-<div class="panel"><h2>Match log <span class="pill" id="aiVersion">AI V4</span></h2>
+<div class="panel"><h2>Match log <span class="pill" id="aiVersion">AI V5</span></h2>
 <p>Full history is kept for this match. Recent sessions are saved locally in this browser when storage is allowed.</p>
 <div class="actionrow"><button class="ctl" id="exportLog">Export logs</button><button class="ctl" id="copyLog">Copy logs</button><button class="ctl" id="pastLog">Past matches</button></div>
 <div id="log" class="log" aria-live="polite"></div><div id="pastMatches" class="log" style="display:none"></div></div>
@@ -37,10 +37,10 @@
 </div><p class="foot">Experimental game rules — designed to test whether the opposite-edge jar objective makes interesting choices, before building it in Unity.</p>
 </div>
 <script>
-/* FlowForge AI V4. Pure search/evaluation module; can be replaced without editing game rules. */
+/* FlowForge AI V5. Pure search/evaluation module; can be replaced without editing game rules. */
 (function(root) {
 'use strict';
-const N=7, GOAL=6, PORTS=[0,1,2,4,5,6], DIRS=[[1,0],[-1,0],[0,1],[0,-1]];
+const N=7, GOAL=12, PORTS=[0,1,2,4,5,6], DIRS=[[1,0],[-1,0],[0,1],[0,-1]];
 const index=(r,c)=>r*N+c;
 const inside=(r,c)=>r>=0&&r<N&&c>=0&&c<N;
 const other=t=>t==='blue'?'orange':'blue';
@@ -146,34 +146,36 @@ function networkDistance(s,t) {
   const g=target(t);return dist[index(g.r,g.c)];
 }
 function evaluate(s) {
-  if(s.score.orange>=GOAL)return 100000;
-  if(s.score.blue>=GOAL)return -100000;
-  // Higher is better for Orange AI.
-  let value=(s.score.orange-s.score.blue)*145;
+  if(s.score.orange>=GOAL)return 1000000;
+  if(s.score.blue>=GOAL)return -1000000;
+  // Positive values favor Orange. Reachable flow is more valuable near the end.
   const orangeFlow=Math.min(2,sourceCount(s,'orange'));
   const blueFlow=Math.min(2,sourceCount(s,'blue'));
-  value+=(orangeFlow-blueFlow)*95;
-  value+=(networkDistance(s,'blue')-networkDistance(s,'orange'))*23;
-  const oPowered=connectivity(s,'orange'),bPowered=connectivity(s,'blue');
-  value+=(oPowered.size-bPowered.size)*2.4;
+  const urgency=s.score.blue>=GOAL-4?2.0:1;
+  let value=(s.score.orange-s.score.blue)*220;
+  value+=(orangeFlow-blueFlow)*170*urgency;
+  value+=(networkDistance(s,'blue')-networkDistance(s,'orange'))*42;
+  const oPowered=connectivity(s,'orange'), bPowered=connectivity(s,'blue');
+  value+=(oPowered.size-bPowered.size)*3.5;
   const orangePieces=active(s,'orange'),bluePieces=active(s,'blue');
-  // Protect limited, permanently destroyable builders.
-  value+=(orangePieces.length-bluePieces.length)*122;
-  value+=(orangePieces.reduce((a,p)=>a+(p.level-1),0)-bluePieces.reduce((a,p)=>a+(p.level-1),0))*26;
+  value+=(orangePieces.length-bluePieces.length)*185;
+  value+=(orangePieces.reduce((a,p)=>a+(p.level-1),0)-bluePieces.reduce((a,p)=>a+(p.level-1),0))*60;
   for(const t of ['orange','blue']) {
-    let danger=0,front=99;
     const enemies=active(s,other(t));
     const goal=target(t);
+    let front=20,exposure=0;
     for(const p of active(s,t)) {
-      if(inside(p.r,p.c)){
-        front=Math.min(front,Math.abs(p.r-goal.r)+Math.abs(p.c-goal.c));
-        if(enemies.some(q=>adjacent(q,p.r,p.c))) danger+=p.level===1?88:42;
-        // Extra protection for the generator currently maintaining a route.
-        if(s.grid[index(p.r,p.c)]===t && !connectivity(s,t).has(index(p.r,p.c)))danger+=6;
-      }
+      if(!inside(p.r,p.c))continue;
+      const d=Math.abs(p.r-goal.r)+Math.abs(p.c-goal.c);
+      front=Math.min(front,d);
+      const enemyDistance=enemies.reduce((best,q)=>inside(q.r,q.c)?Math.min(best,Math.abs(q.r-p.r)+Math.abs(q.c-p.c)):best,99);
+      // An adjacent enemy can destroy a Gen1 immediately (Gen2 loses one level).
+      if(enemyDistance===1)exposure+=p.level===1?250:105;
+      else if(enemyDistance===2)exposure+=p.level===1?17:8;
+      if(s.grid[index(p.r,p.c)]===t && !((t==='orange'?oPowered:bPowered).has(index(p.r,p.c))))exposure+=10;
     }
-    if(front===99)front=7;
-    const term=-1.25*front-danger;
+    if(front===20)front=10;
+    const term=-front*19-exposure;
     value+=t==='orange'?term:-term;
   }
   return value;
@@ -181,41 +183,57 @@ function evaluate(s) {
 function compareMoves(a,b){return a.id-b.id||a.r-b.r||a.c-b.c||a.action.localeCompare(b.action);}
 function choose(state) {
   const actions=actionList(state,'orange');
-  if(!actions.length)return {move:null,explanation:'No legal moves; passing turn.',diagnostics:{candidates:0}};
-  const ranked=actions.map(a=>({a,sim:apply(state,'orange',a)}));
-  for(const r of ranked)r.value=evaluate(r.sim);
+  if(!actions.length)return {move:null,explanation:'No legal moves; passing turn.',diagnostics:{candidates:0,shortlist:0,riskReply:'none'}};
+  const blueFlowBefore=sourceCount(state,'blue');
+  const ranked=actions.map(a=>{
+    const sim=apply(state,'orange',a);
+    const value=evaluate(sim);
+    const cut=blueFlowBefore>0 && sourceCount(sim,'blue')<blueFlowBefore;
+    return {a,sim,value,cut};
+  });
   ranked.sort((x,y)=>y.value-x.value||compareMoves(x.a,y.a));
-  // Look ahead at the human's strongest response for the best immediate options.
-  // Keep this bounded to avoid stalls on mobile devices.
-  const shortlist=ranked.slice(0,Math.min(14,ranked.length));
-  let best=null, bestValue=-Infinity, bestReply=null;
+  // Don't prune away a necessary pipe cut just because expansion scores well now.
+  const shortlist=ranked.slice(0,Math.min(22,ranked.length));
+  const included=new Set(shortlist.map(x=>x.a.id+':'+x.a.r+':'+x.a.c+':'+x.a.action));
+  let extras=0;
+  for(const item of ranked){
+    if(extras>=8)break;
+    const key=item.a.id+':'+item.a.r+':'+item.a.c+':'+item.a.action;
+    if(item.cut&&!included.has(key)){shortlist.push(item);included.add(key);extras++;}
+  }
+  let best=null,bestValue=-Infinity,bestReply=null;
   for(const r of shortlist){
-    const responses=actionList(r.sim,'blue');
-    let afterReply=r.value,reply=null;
-    for(const m of responses){const v=evaluate(apply(r.sim,'blue',m));if(v<afterReply){afterReply=v;reply=m;}}
-    const value=.34*r.value+.66*afterReply;
-    if(value>bestValue+0.000001||(Math.abs(value-bestValue)<0.000001&&best&&compareMoves(r.a,best.a)<0)){
+    // Blue can also choose to wait and collect water. Check this explicitly.
+    const blueAfterWait=Math.min(GOAL,r.sim.score.blue+Math.min(2,sourceCount(r.sim,'blue')));
+    const passState={...r.sim,score:{...r.sim.score,blue:blueAfterWait}};
+    let afterReply=evaluate(passState),reply={action:'wait'};
+    for(const m of actionList(r.sim,'blue')) {
+      const v=evaluate(apply(r.sim,'blue',m));
+      if(v<afterReply){afterReply=v;reply=m;}
+      if(afterReply<=-1000000)break;
+    }
+    const value=.20*r.value+.80*afterReply;
+    if(value>bestValue+1e-6||(Math.abs(value-bestValue)<1e-6&&best&&compareMoves(r.a,best.a)<0)){
       best=r;bestValue=value;bestReply=reply;
     }
   }
-  // Clear, human-readable diagnostics help debug choices and compare strengths.
   const a=best.a;
   let explanation='';
-  if(a.action==='attack')explanation='Disrupts an enemy pipe or generator';
-  else if(a.action==='merge')explanation='Protects a generator with a Gen2 merge';
-  else if(a.action==='move')explanation='Repositions along the connected pipeline';
-  else explanation='Expands toward the opponent’s jar';
-  if(bestReply && bestReply.action==='attack') explanation+='; anticipates a Blue counterattack';
-  return {move:a,explanation,diagnostics:{candidates:actions.length,shortlist:shortlist.length,immediate:Number(best.value.toFixed(1)),afterReply:Number(bestValue.toFixed(1)),riskReply:bestReply?.action||'none'}};
+  if(best.cut)explanation='Cuts a powered Blue supply route';
+  else if(a.action==='attack')explanation='Disrupts an enemy pipe or generator';
+  else if(a.action==='merge')explanation='Combines two generators into a Gen2';
+  else if(a.action==='move')explanation='Repositions along the connected network';
+  else explanation='Expands its powered pipeline toward the jar';
+  if(bestReply?.action==='attack')explanation+='; expects a Blue counterattack';
+  return {move:a,explanation,diagnostics:{candidates:actions.length,shortlist:shortlist.length,immediate:Number(best.value.toFixed(1)),afterReply:Number(bestValue.toFixed(1)),riskReply:bestReply?.action||'none',threat:state.score.blue+'/'+GOAL}};
 }
-root.FlowForgeAI={version:'V4 · reply-aware',choose};
+root.FlowForgeAI={version:'V5 · defensive planner',choose};
 })(window);
-
 </script>
 <script>
 (() => {
   'use strict';
-  const N = 7, GOAL = 6, PORTS = [0, 1, 2, 4, 5, 6];
+  const N = 7, GOAL = 12, PORTS = [0, 1, 2, 4, 5, 6];
   const DIRS = [[1,0], [-1,0], [0,1], [0,-1]];
   const COLORS = { blue: '#45cfff', orange: '#ff9950' };
   const $ = id => document.getElementById(id);
@@ -626,7 +644,7 @@ root.FlowForgeAI={version:'V4 · reply-aware',choose};
   });
   $('exportLog').addEventListener('click',()=>{
     persist();
-    const data=JSON.stringify({version:'flowforge-7x7-v4',ai:window.FlowForgeAI.version,exported:new Date().toISOString(),matches:archive},null,2);
+    const data=JSON.stringify({version:'flowforge-7x7-v5',ai:window.FlowForgeAI.version,exported:new Date().toISOString(),matches:archive},null,2);
     const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
     const a=document.createElement('a');a.href=url;a.download='flowforge-match-logs.json';a.click();
     setTimeout(()=>URL.revokeObjectURL(url),5000);
