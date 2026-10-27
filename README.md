@@ -25,3 +25,6 @@ Water and fire spread one connected tile per owning turn. Disconnected wet pipes
 
 ## Sharing playtest logs
 The browser stores recent matches locally, including a post-turn snapshot of the pipes, wet flow, score, generator positions and AI diagnostics. After a match, click **Copy match report** and paste it in ChatGPT, or **Download match JSON** and attach it. The **Share via GitHub issue** control opens a prefilled public issue draft; submit it on GitHub and then ask ChatGPT to check the latest FlowForge issue. Leaving a browser tab open does not automatically share local match data.
+
+## Capture-on-kill combat
+Attacking an adjacent Gen1 destroys that generator and its pipe, advances the attacker into the vacated tile, and converts the tile to the attacker's pipe (initially dry). A supporting enemy generator can counterattack on the following turn. Gen2 survives one hit, downgrading to Gen1 without attacker movement. Empty enemy pipes are destroyed without attacker movement. The progressive flow and scoring rules are unchanged.
